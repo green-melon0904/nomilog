@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 520">
+  <rect width="640" height="520" fill="#f8fbff"/>
+  <circle cx="500" cy="125" r="110" fill="#e6f0ff"/>
+  <circle cx="130" cy="394" r="110" fill="#fff4cf"/>
+  <g transform="translate(230 44)">
+    <rect x="22" y="0" width="172" height="436" rx="42" fill="#17213a"/>
+    <rect x="42" y="118" width="132" height="184" rx="20" fill="#2769ff"/>
+    <path d="m120 132-44 92h42l-22 78 72-114h-42z" fill="#ffd447"/>
+    <text x="108" y="344" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="800" fill="#fff">VOLT</text>
+  </g>
+</svg>

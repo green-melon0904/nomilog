@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 520">
+  <rect width="640" height="520" fill="#fffaf3"/>
+  <circle cx="140" cy="398" r="126" fill="#f1dfc8"/>
+  <circle cx="506" cy="112" r="94" fill="#f5ede3"/>
+  <g transform="translate(230 44)">
+    <path d="M48 0h116c20 0 34 14 34 34v350c0 34-30 52-92 52S14 418 14 384V34C14 14 28 0 48 0z" fill="#ead8c3" stroke="#d2b998" stroke-width="8"/>
+    <path d="M34 154h144v150H34z" fill="#8b5a38"/>
+    <circle cx="106" cy="228" r="42" fill="#f6e9d8"/>
+    <path d="M76 228c20-24 42-24 62 0-20 22-42 22-62 0z" fill="#8b5a38" opacity=".35"/>
+    <text x="106" y="286" text-anchor="middle" font-family="Arial, sans-serif" font-size="24" font-weight="800" fill="#fff">LATTE</text>
+  </g>
+</svg>

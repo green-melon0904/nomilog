@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 520">
+  <rect width="640" height="520" fill="#f7fbf7"/>
+  <path d="M80 410c118-58 178-58 282 0s150 58 198 0v110H80z" fill="#e1f1e6"/>
+  <g transform="translate(228 42)">
+    <path d="M64 0h84l-9 64c38 32 57 84 57 154v150c0 44-29 68-90 68s-90-24-90-68V218c0-70 19-122 57-154z" fill="#e7f3e8" stroke="#bdd8c5" stroke-width="8"/>
+    <path d="M42 178c42 20 88 20 128 0v142c-42 22-88 22-128 0z" fill="#24824f"/>
+    <path d="M78 230c36-48 74-44 84-18-28 0-48 12-68 44z" fill="#dff5c7"/>
+    <text x="106" y="298" text-anchor="middle" font-family="Arial, sans-serif" font-size="26" font-weight="800" fill="#fff">TEA</text>
+    <rect x="74" y="8" width="82" height="28" rx="8" fill="#1d6b41"/>
+  </g>
+</svg>
