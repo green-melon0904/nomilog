@@ -215,9 +215,20 @@ on conflict (id) do nothing;
 
 -- レビュー画像用の公開バケット。閲覧は匿名可にしつつ、アップロードや差し替えは
 -- user.id配下のパスだけを許可して、他人の画像を上書きできないようにする。
-insert into storage.buckets (id, name, public)
-values ('review-images', 'review-images', true)
-on conflict (id) do nothing;
+-- 公開バケットなので、UIを迂回したStorage API呼び出しにも備えてサイズとMIME typeを制限する。
+insert into storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
+values (
+  'review-images',
+  'review-images',
+  true,
+  2097152,
+  array['image/jpeg', 'image/png', 'image/webp']
+)
+on conflict (id) do update
+set
+  public = excluded.public,
+  file_size_limit = excluded.file_size_limit,
+  allowed_mime_types = excluded.allowed_mime_types;
 
 create policy "review images are public readable" on storage.objects
   for select using (bucket_id = 'review-images');
@@ -226,12 +237,18 @@ create policy "users can upload review images under own folder" on storage.objec
   for insert with check (
     bucket_id = 'review-images'
     and auth.uid()::text = (storage.foldername(name))[1]
+    and lower(storage.extension(name)) in ('jpg', 'jpeg', 'png', 'webp')
   );
 
 create policy "users can update own review images" on storage.objects
   for update using (
     bucket_id = 'review-images'
     and auth.uid()::text = (storage.foldername(name))[1]
+  )
+  with check (
+    bucket_id = 'review-images'
+    and auth.uid()::text = (storage.foldername(name))[1]
+    and lower(storage.extension(name)) in ('jpg', 'jpeg', 'png', 'webp')
   );
 
 create policy "users can delete own review images" on storage.objects
