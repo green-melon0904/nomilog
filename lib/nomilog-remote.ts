@@ -19,6 +19,8 @@ type ReviewRow = {
 };
 
 export function canUseRemoteData() {
+  // SupabaseのURLと匿名キーがある環境だけ、リモートDBを使う。
+  // 未設定ならローカルデモとして動かし、開発者が.envなしでもUIを確認できる。
   return hasSupabaseEnv();
 }
 
@@ -27,6 +29,8 @@ export async function fetchRemoteReviews(): Promise<Review[]> {
   const supabase = createClient();
   if (!supabase) return [];
 
+  // reviewsとprofilesをまとめて取得し、レビュー一覧で投稿者名を表示できる形にする。
+  // 取得に失敗してもローカルレビュー表示は継続したいため、呼び出し元には空配列を返す。
   const { data, error } = await supabase
     .from("reviews")
     .select(
@@ -53,6 +57,8 @@ export async function saveRemoteReviewDraft(draft: ReviewDraft): Promise<Review>
 
   let imageUrl: string | undefined;
   if (draft.imageDataUrl) {
+    // フォームではプレビューしやすいData URLで画像を持つため、送信直前にBlobへ戻す。
+    // Storageのパスはuser.id配下にし、RLSで本人だけが差し替え・削除できる構造に揃える。
     const blob = await fetch(draft.imageDataUrl).then((response) => response.blob());
     const extension = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
     const path = `${user.id}/${crypto.randomUUID()}.${extension}`;
@@ -64,6 +70,8 @@ export async function saveRemoteReviewDraft(draft: ReviewDraft): Promise<Review>
     imageUrl = supabase.storage.from("review-images").getPublicUrl(path).data.publicUrl;
   }
 
+  // reviewsへのinsertはDB側の制約とトリガーに任せる。成功時はprofilesを結合して取り直し、
+  // 画面で使うReview型へ変換して呼び出し元に返す。
   const { data, error } = await supabase
     .from("reviews")
     .insert({
@@ -88,6 +96,8 @@ export async function saveRemoteReviewDraft(draft: ReviewDraft): Promise<Review>
 }
 
 function toReview(row: ReviewRow): Review {
+  // Supabaseのsnake_case行を、Reactコンポーネントで扱いやすいcamelCaseのReview型へ変換する。
+  // profilesはSupabaseの型推論で配列になる場合があるため、単一プロフィールへ正規化してから読む。
   const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
 
   return {

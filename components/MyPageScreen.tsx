@@ -13,6 +13,8 @@ export function MyPageScreen() {
   const [email, setEmail] = useState("");
   const [authMessage, setAuthMessage] = useState("");
   const [remoteUserEmail, setRemoteUserEmail] = useState<string | null>(null);
+  // ローカルデモでは固定ユーザー名で投稿するため、自分のレビュー判定もdemoUserに寄せる。
+  // Supabase接続時はログインユーザーのレビューがリモートから混ざる前提なので、後で拡張しやすい形にしている。
   const myReviews = reviews
     .filter((review) => review.userId === demoUser.userId || review.userName === demoUser.name)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
@@ -20,6 +22,8 @@ export function MyPageScreen() {
   const remoteEnabled = hasSupabaseEnv();
 
   useEffect(() => {
+    // Supabase環境変数がある場合だけログイン状態を確認する。
+    // 未設定のローカルデモではAuth UIを出さず、レビュー体験をすぐ試せる状態を優先する。
     const supabase = createClient();
     if (!supabase) return;
     void supabase.auth.getUser().then(({ data }) => setRemoteUserEmail(data.user?.email ?? null));
@@ -29,6 +33,8 @@ export function MyPageScreen() {
     setAuthMessage("");
     const supabase = createClient();
     if (!supabase || !email.trim()) return;
+    // iOS Safariでも扱いやすいよう、パスワード入力ではなくメールOTPでログインする。
+    // 認証後はマイページへ戻し、レビュー投稿時にSupabase AuthのユーザーIDを使えるようにする。
     const { error } = await supabase.auth.signInWithOtp({
       email: email.trim(),
       options: {

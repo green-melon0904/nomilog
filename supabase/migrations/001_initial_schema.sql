@@ -1,5 +1,7 @@
 create extension if not exists "pgcrypto";
 
+-- Authユーザーに紐づく公開プロフィール。レビュー表示ではメールアドレスを出さず、
+-- このテーブルのname/avatar_urlだけを参照して投稿者情報を扱う。
 create table public.profiles (
   user_id uuid primary key references auth.users(id) on delete cascade,
   name text not null,
@@ -7,6 +9,8 @@ create table public.profiles (
   created_at timestamptz not null default now()
 );
 
+-- 商品カテゴリは検索フィルターと商品詳細の表示に使う。
+-- slugはURLクエリに載せるため、日本語名とは別に安定した英字キーを持たせる。
 create table public.categories (
   id uuid primary key default gen_random_uuid(),
   name text not null unique,
@@ -14,6 +18,8 @@ create table public.categories (
   created_at timestamptz not null default now()
 );
 
+-- 商品マスタ。MVPではアプリ側seedと同じIDを投入し、レビュー集計値は
+-- reviewsテーブルの変更トリガーで更新して一覧・ランキング表示を軽くする。
 create table public.products (
   id uuid primary key default gen_random_uuid(),
   name text not null,
@@ -28,6 +34,8 @@ create table public.products (
   created_at timestamptz not null default now()
 );
 
+-- レビュー本体。画面側でも同じ範囲を検証するが、DB制約でも必須項目と評価値を守る。
+-- carbonationだけは仕様通り0〜4で保存し、表示時に「なし/弱め/普通/強め/強炭酸」へ変換する。
 create table public.reviews (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(user_id) on delete cascade,
@@ -47,6 +55,8 @@ create table public.reviews (
   updated_at timestamptz not null default now()
 );
 
+-- 検索で見つからなかった商品の追加要望。MVPではユーザーが商品マスタを直接増やさず、
+-- リクエストとして蓄積し、後から運用側で確認できる形にしている。
 create table public.product_requests (
   id uuid primary key default gen_random_uuid(),
   user_id uuid not null references public.profiles(user_id) on delete cascade,
@@ -58,6 +68,8 @@ create table public.product_requests (
   created_at timestamptz not null default now()
 );
 
+-- Supabase Authでユーザーが作られた直後にprofilesも用意する。
+-- reviews.user_idはprofilesを参照するため、投稿前にプロフィール行が存在する状態へ揃える。
 create or replace function public.handle_new_user()
 returns trigger
 language plpgsql
@@ -80,6 +92,8 @@ create trigger on_auth_user_created
 after insert on auth.users
 for each row execute function public.handle_new_user();
 
+-- 1商品のレビュー集計を再計算するRPC。insert/update/deleteのたびに呼び、
+-- products側の平均値とレビュー数を常にレビュー実体から導出した値に戻す。
 create or replace function public.refresh_product_stats(target_product_id uuid)
 returns void
 language plpgsql
@@ -119,6 +133,8 @@ begin
 end;
 $$;
 
+-- reviewsの変更を受けて集計対象の商品を更新するトリガー関数。
+-- product_idが更新された場合は、新旧両方の商品集計を直して整合性を保つ。
 create or replace function public.handle_review_stats()
 returns trigger
 language plpgsql
@@ -145,6 +161,8 @@ create trigger reviews_refresh_product_stats
 after insert or update or delete on public.reviews
 for each row execute function public.handle_review_stats();
 
+-- Row Level Securityを有効化し、匿名閲覧は許可しつつ、投稿・更新・削除は本人に限定する。
+-- フロントエンドのガードだけに依存せず、DB側でも同じ権限境界を守る。
 alter table public.profiles enable row level security;
 alter table public.categories enable row level security;
 alter table public.products enable row level security;
@@ -175,6 +193,8 @@ create policy "users can insert product requests" on public.product_requests
 create policy "users can read their product requests" on public.product_requests
   for select using (auth.uid() = user_id);
 
+-- MVPの初期カテゴリと商品。アプリ内seedと同じUUIDにしておくことで、
+-- ローカルデモからSupabase接続へ切り替えてもproductIdの参照がずれない。
 insert into public.categories (id, name, slug) values
   ('11111111-1111-4111-8111-111111111111', '炭酸', 'soda'),
   ('22222222-2222-4222-8222-222222222222', 'お茶', 'tea'),
@@ -193,6 +213,8 @@ insert into public.products (id, name, maker, category_id, image_url, created_at
   ('aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa6', 'まる搾りレモンサワー', '北浜酒造', '44444444-4444-4444-8444-444444444444', '/products/lemon-sour.svg', '2026-06-09T19:00:00.000Z')
 on conflict (id) do nothing;
 
+-- レビュー画像用の公開バケット。閲覧は匿名可にしつつ、アップロードや差し替えは
+-- user.id配下のパスだけを許可して、他人の画像を上書きできないようにする。
 insert into storage.buckets (id, name, public)
 values ('review-images', 'review-images', true)
 on conflict (id) do nothing;

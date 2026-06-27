@@ -1,6 +1,7 @@
 @import "tailwindcss";
 
 :root {
+  /* アプリ全体で使う色をCSS変数に集約し、コンポーネント側は意味名で参照する。 */
   --background: #ffffff;
   --surface: #ffffff;
   --surface-soft: #f6faf7;
@@ -51,17 +52,20 @@ a {
 }
 
 .mobile-shell {
+  /* 固定ボトムナビに本文が隠れないよう、ナビ高さとiOS safe-area分の余白を確保する。 */
   min-height: 100dvh;
   padding-bottom: calc(88px + env(safe-area-inset-bottom));
 }
 
 .screen {
+  /* iPhone中心の画面幅にしつつ、デスクトップ確認時も読みやすい最大幅に抑える。 */
   margin: 0 auto;
   width: min(100%, 480px);
   padding: 14px 16px 0;
 }
 
 .safe-bottom {
+  /* ホームインジケータ付き端末で、固定ナビの下端が操作領域に重ならないようにする。 */
   padding-bottom: env(safe-area-inset-bottom);
 }
 
@@ -79,10 +83,12 @@ a {
 }
 
 .tap-target {
+  /* iOS Human Interface Guidelinesに合わせ、主要操作のタップ領域を44px以上にする。 */
   min-height: 44px;
 }
 
 .scrollbar-none {
+  /* 横スクロールのカテゴリやレコメンドは、スクロールバーを消してモバイルらしい見た目にする。 */
   scrollbar-width: none;
 }
 

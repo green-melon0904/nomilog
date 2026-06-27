@@ -26,6 +26,8 @@ export function SearchScreen() {
   const [requested, setRequested] = useState(false);
 
   const results = useMemo(() => {
+    // 検索条件はすべてクライアント側で組み合わせる。MVPでは商品数が少ないため、
+    // DB検索APIを作らず、seed商品とレビュー情報を突き合わせて絞り込みを行う。
     const normalized = query.trim().toLowerCase();
     const selectedCategoryId = categories.find((item) => item.slug === category)?.id;
     const products = enrichProducts(reviews).filter((product) => {
@@ -40,6 +42,8 @@ export function SearchScreen() {
       return matchesQuery && matchesCategory && matchesLocation;
     });
 
+    // 人気順はレビュー数を優先し、同数なら平均評価で並べる。
+    // 評価順では平均評価を優先しつつ、レビュー数が多い商品を同点時に上へ出す。
     return products.sort((a, b) => {
       if (sort === "new") return Date.parse(b.createdAt) - Date.parse(a.createdAt);
       if (sort === "rating") return b.avgRating - a.avgRating || b.reviewCount - a.reviewCount;
@@ -48,6 +52,8 @@ export function SearchScreen() {
   }, [category, location, query, reviews, sort]);
 
   function syncUrl(nextQuery = query) {
+    // フィルター状態をURLに反映しておくと、検索結果を共有したり戻る操作をしたりしても
+    // 直前の条件が復元される。初期値の条件はURLを短く保つため省略する。
     const next = new URLSearchParams();
     if (nextQuery.trim()) next.set("q", nextQuery.trim());
     if (category !== "all") next.set("category", category);
@@ -57,6 +63,8 @@ export function SearchScreen() {
   }
 
   function requestProduct() {
+    // 商品が見つからない場合でもユーザーの意図を捨てないため、MVPでは即時追加ではなく
+    // 商品リクエストとして保存する。管理画面がない間はlocalStorageに積むだけにしている。
     if (!query.trim()) return;
     saveProductRequest(query.trim());
     setRequested(true);

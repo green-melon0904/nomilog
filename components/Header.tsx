@@ -10,6 +10,8 @@ export function Header({
   backHref?: string;
   action?: "bell" | "none";
 }) {
+  // 各画面で共通の高さとタップ領域を保つヘッダー。
+  // backHrefがある画面だけ戻る導線を出し、通知ボタンはホームなど必要な画面だけ表示する。
   return (
     <header className="mb-4 flex h-12 items-center justify-between">
       <div className="flex min-w-0 items-center gap-2">

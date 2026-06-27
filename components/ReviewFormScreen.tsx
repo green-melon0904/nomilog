@@ -35,12 +35,16 @@ export function ReviewFormScreen() {
   const [formError, setFormError] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
+  // 途中まで入力したレビューを失わないよう、ユーザーが意味のある入力を始めた状態を
+  // dirty として扱う。評価・コメント・シーン・画像のいずれかがあれば離脱確認の対象にする。
   const dirty = useMemo(
     () => rating > 0 || comment.length > 0 || scene.length > 0 || Boolean(imageDataUrl),
     [comment.length, imageDataUrl, rating, scene.length]
   );
 
   useEffect(() => {
+    // ブラウザの戻る・リロード・タブを閉じる操作では React Router の確認が効かないため、
+    // beforeunload でも未送信レビューの破棄確認を出せるようにしている。
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!dirty || submitted) return;
       event.preventDefault();
@@ -50,11 +54,15 @@ export function ReviewFormScreen() {
   }, [dirty, submitted]);
 
   useEffect(() => {
+    // ボトムナビは AppShell 側にあるため、フォームの dirty 状態を sessionStorage で共有する。
+    // これにより投稿画面外のナビゲーションでも、入力内容を破棄する前に確認できる。
     window.sessionStorage.setItem("nomilog.reviewFormDirty", dirty && !submitted ? "true" : "false");
     return () => window.sessionStorage.removeItem("nomilog.reviewFormDirty");
   }, [dirty, submitted]);
 
   if (!product) {
+    // productId がない状態で投稿画面に来た場合は、誤って別商品のレビューにならないよう保存させない。
+    // MVPでは商品詳細から投稿開始する導線に寄せ、まず検索画面へ戻して商品を選ばせる。
     return (
       <div className="screen">
         <HeaderlessTitle title="レビューを書く" onClose={() => router.back()} />
@@ -77,6 +85,8 @@ export function ReviewFormScreen() {
   const selectedProduct = product;
 
   function toggleScene(next: SceneTag) {
+    // シーンは複数選択なので、押すたびに追加・削除を切り替える。
+    // DB 側でも text[] として保存するため、ここでも配列のまま状態を持つ。
     setScene((current) =>
       current.includes(next) ? current.filter((item) => item !== next) : [...current, next]
     );
@@ -87,6 +97,8 @@ export function ReviewFormScreen() {
     setImageDataUrl(undefined);
     if (!file) return;
 
+    // iPhoneではHEIC画像が選ばれやすいが、MVPではサーバー側変換を持たない。
+    // 対応形式だけを明示的に許可して、投稿時ではなく選択直後に分かるようにする。
     if (!acceptedTypes.includes(file.type)) {
       setImageError("JPEG / PNG / WebP のみ対応しています。HEICはMVPでは非対応です。");
       return;
@@ -97,6 +109,8 @@ export function ReviewFormScreen() {
       return;
     }
 
+    // ローカルモードでは画像をlocalStorageへ保存するため、プレビューと保存の両方に使える
+    // Data URLへ変換する。Supabase接続時は送信時にBlobへ戻してStorageへアップロードする。
     const reader = new FileReader();
     reader.onload = () => setImageDataUrl(String(reader.result));
     reader.onerror = () => setImageError("画像の読み込みに失敗しました。もう一度選択してください。");
@@ -106,6 +120,8 @@ export function ReviewFormScreen() {
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setFormError("");
+    // DB制約と同じ必須条件を画面側でも先に確認し、送信後に失敗する体験を減らす。
+    // 評価・おすすめシーン・コメントはレビューとして成立する最低限の情報として扱う。
     if (rating < 1) {
       setFormError("総合評価を選択してください。");
       return;
@@ -131,6 +147,8 @@ export function ReviewFormScreen() {
         comment: comment.trim(),
         imageDataUrl
       };
+      // 環境変数がある場合はSupabaseへ保存し、未設定の開発環境ではlocalStorageへ保存する。
+      // 同じフォームで本番想定とローカルデモの両方を動かせるよう、保存先だけをここで分岐する。
       if (canUseRemoteData()) {
         await saveRemoteReviewDraft(draft);
       } else {
@@ -145,6 +163,7 @@ export function ReviewFormScreen() {
   }
 
   function closeForm() {
+    // 画面左上の閉じる操作でも、ボトムナビやリロードと同じく未保存レビューを守る。
     if (dirty && !submitted && !window.confirm("入力中のレビューを破棄しますか？")) return;
     router.back();
   }

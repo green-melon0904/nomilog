@@ -1,4 +1,6 @@
 export function ScoreMeter({ label, value, max = 5 }: { label: string; value: number; max?: number }) {
+  // 甘さ・コスパは5段階、炭酸は0〜4段階なのでmaxを外から渡せるようにする。
+  // 予期しない値が来てもバーがはみ出さないよう、0〜100%に丸めて表示する。
   const percent = Math.max(0, Math.min(100, (value / max) * 100));
 
   return (

@@ -33,8 +33,12 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
   const productReviews = reviews
     .filter((review) => review.productId === product.id)
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt));
+  // 表示用の平均値はレビュー一覧から都度計算する。Supabase利用時はDBにも集計値を持つが、
+  // ここではローカルレビューとリモートレビューを混ぜた現在の画面状態を正として扱う。
   const stats = calculateStats(product.id, reviews);
   const locations = Array.from(new Set(productReviews.map((review) => review.purchaseLocation)));
+  // 「似た味」はMVP仕様どおり、甘さと炭酸の平均値が近い商品を優先して表示する。
+  // 味の近さを説明しやすくするため、まずは2軸だけに絞ったシンプルなレコメンドにしている。
   const similarProducts = getSimilarProducts(product.id, reviews, 4);
 
   return (

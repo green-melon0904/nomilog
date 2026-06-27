@@ -39,6 +39,8 @@ function BottomNavItem({
   const active = href === "/" ? pathname === href : pathname.startsWith(href);
 
   function guardDirtyForm(event: React.MouseEvent<HTMLAnchorElement>) {
+    // 投稿フォームは別コンポーネントなので、未保存状態をsessionStorage経由で受け取る。
+    // ボトムナビから移動した場合も、入力途中のレビューをうっかり捨てないようにする。
     if (typeof window === "undefined") return;
     if (window.sessionStorage.getItem("nomilog.reviewFormDirty") !== "true") return;
     if (!window.confirm("入力中のレビューを破棄して移動しますか？")) {

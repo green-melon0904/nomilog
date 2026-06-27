@@ -212,6 +212,8 @@ export function formatDate(value: string) {
 }
 
 export function calculateStats(productId: string, reviews: Review[]): ProductStats {
+  // 商品ごとの平均値は、表示中のレビュー配列を唯一の入力にして計算する。
+  // これによりseedレビュー、localStorageレビュー、Supabaseレビューを混ぜても同じロジックで扱える。
   const productReviews = reviews.filter((review) => review.productId === productId);
   if (productReviews.length === 0) {
     return {
@@ -236,6 +238,8 @@ export function calculateStats(productId: string, reviews: Review[]): ProductSta
 }
 
 export function enrichProducts(reviews: Review[] = seedReviews): ProductWithStats[] {
+  // 商品一覧カードでは平均評価やレビュー数も必要になるため、商品マスタに集計値を付与して返す。
+  // 元のproducts配列は変更せず、画面ごとに最新レビューから派生データを作る。
   return products.map((product) => ({
     ...product,
     ...calculateStats(product.id, reviews)
@@ -243,6 +247,8 @@ export function enrichProducts(reviews: Review[] = seedReviews): ProductWithStat
 }
 
 export function getRanking(reviews: Review[], limit = 5) {
+  // レビュー数だけだと古い商品が固定化され、平均評価だけだと少数レビューの商品が上がりやすい。
+  // そのため平均評価を主軸にしつつ、最大10件までのレビュー数を軽く加点してランキングを作る。
   return enrichProducts(reviews)
     .filter((product) => product.reviewCount > 0)
     .sort((a, b) => {
@@ -254,6 +260,8 @@ export function getRanking(reviews: Review[], limit = 5) {
 }
 
 export function getSimilarProducts(productId: string, reviews: Review[], limit = 6) {
+  // MVPのレコメンドは説明可能性を優先し、甘さと炭酸の平均値だけで距離を計算する。
+  // 将来はカテゴリや購入場所も加味できるが、ここでは「似た味」の最小実装として保っている。
   const all = enrichProducts(reviews);
   const base = all.find((product) => product.id === productId);
   if (!base) return [];
@@ -275,6 +283,8 @@ export function getSimilarProducts(productId: string, reviews: Review[], limit =
 export function readLocalReviews(): Review[] {
   if (typeof window === "undefined") return [];
   try {
+    // localStorageは壊れたJSONが入る可能性があるため、読めない場合は空配列に戻す。
+    // 画面全体を落とさず、投稿・検索の体験を続けられることを優先する。
     return JSON.parse(window.localStorage.getItem(reviewsKey) ?? "[]") as Review[];
   } catch {
     return [];
@@ -286,6 +296,8 @@ export function readAllReviews(): Review[] {
 }
 
 export function saveReviewDraft(draft: ReviewDraft): Review {
+  // Supabase未設定の開発環境でもレビュー投稿の一連の体験を確認できるよう、
+  // localStorageへ保存するレビューを本番DBのReview型に近い形で組み立てる。
   const now = new Date().toISOString();
   const review: Review = {
     id: `local-${crypto.randomUUID()}`,
@@ -305,6 +317,8 @@ export function saveReviewDraft(draft: ReviewDraft): Review {
   };
   const next = [...readLocalReviews(), review];
   try {
+    // 画像をData URLで持つと容量を使いやすいため、QuotaExceededErrorはユーザー向けに
+    // 写真を外す対処が分かるメッセージへ変換する。
     window.localStorage.setItem(reviewsKey, JSON.stringify(next));
   } catch (error) {
     throw new Error(
@@ -313,11 +327,14 @@ export function saveReviewDraft(draft: ReviewDraft): Review {
         : "レビューの保存に失敗しました。もう一度お試しください。"
     );
   }
+  // 同じタブ内ではstorageイベントが発火しないため、独自イベントで一覧やランキングを再同期する。
   window.dispatchEvent(new Event("nomilog:reviews"));
   return review;
 }
 
 export function deleteLocalReview(reviewId: string) {
+  // マイページの削除はMVPではローカルレビューだけを対象にする。
+  // 削除後は投稿時と同じイベントを出し、商品詳細やランキングの集計を更新させる。
   const next = readLocalReviews().filter((review) => review.id !== reviewId);
   window.localStorage.setItem(reviewsKey, JSON.stringify(next));
   window.dispatchEvent(new Event("nomilog:reviews"));
@@ -326,6 +343,7 @@ export function deleteLocalReview(reviewId: string) {
 export function readProductRequests(): ProductRequest[] {
   if (typeof window === "undefined") return [];
   try {
+    // 商品リクエストもレビューと同様、壊れたlocalStorageで画面を壊さないよう空配列へ戻す。
     return JSON.parse(window.localStorage.getItem(requestsKey) ?? "[]") as ProductRequest[];
   } catch {
     return [];
@@ -333,6 +351,8 @@ export function readProductRequests(): ProductRequest[] {
 }
 
 export function saveProductRequest(name: string) {
+  // MVPではユーザーが直接商品マスタを増やさず、リクエストとして残すだけにする。
+  // seed管理から運用管理画面へ移すときも、この形なら承認フローへつなげやすい。
   const request: ProductRequest = {
     id: `request-${crypto.randomUUID()}`,
     userId: demoUser.userId,
