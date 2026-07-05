@@ -13,7 +13,7 @@ export function ProductCard({ product, compact = false }: { product: ProductWith
         <img src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
       </div>
       <div className="space-y-1 p-3">
-        <p className="line-clamp-2 text-[15px] font-black leading-snug tracking-[0]">{product.name}</p>
+        <p className="line-clamp-2 text-[15px] font-semibold leading-snug tracking-[0]">{product.name}</p>
         <p className="text-[12px] font-semibold text-[var(--muted)]">
           {product.maker} / {getCategoryName(product.categoryId)}
         </p>

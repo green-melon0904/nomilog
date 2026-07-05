@@ -6,14 +6,14 @@ export function LoginNotice({ compact = false }: { compact?: boolean }) {
 
   return (
     <div className="soft-card p-4">
-      <p className="text-[14px] font-black text-[var(--accent-strong)]">ログイン状態</p>
+      <p className="text-[14px] font-semibold text-[var(--accent-strong)]">ログイン状態</p>
       <p className="mt-1 text-[13px] leading-relaxed text-[var(--muted)]">
         {remote
           ? "Supabase接続中です。レビュー投稿にはマイページからのログインが必要です。"
           : "MVPデモではログイン済みユーザーとしてローカル保存します。"}
       </p>
       {!compact ? (
-        <Link href="/mypage" className="mt-3 inline-flex min-h-11 items-center rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-black text-white shadow-[0_10px_22px_rgba(42,155,225,0.2)]">
+        <Link href="/mypage" className="mt-3 inline-flex min-h-11 items-center rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-semibold text-white shadow-[0_10px_22px_rgba(42,155,225,0.2)]">
           マイページを見る
         </Link>
       ) : null}

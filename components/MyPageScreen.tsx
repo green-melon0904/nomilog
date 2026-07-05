@@ -50,11 +50,11 @@ export function MyPageScreen() {
 
       <section className="app-card mb-4 p-4">
         <div className="flex items-center gap-3">
-          <div className="grid h-14 w-14 place-items-center rounded-[8px] bg-[var(--accent)] text-[24px] font-black text-white shadow-[0_10px_22px_rgba(42,155,225,0.22)]">
+          <div className="grid h-14 w-14 place-items-center rounded-[8px] bg-[var(--accent)] text-[24px] font-semibold text-white shadow-[0_10px_22px_rgba(42,155,225,0.22)]">
             {demoUser.avatarUrl}
           </div>
           <div>
-            <p className="text-[18px] font-black">{demoUser.name}</p>
+            <p className="text-[18px] font-semibold">{demoUser.name}</p>
             <p className="mt-1 text-[13px] font-bold text-[var(--muted)]">Supabase接続時はAuthプロフィールに同期</p>
           </div>
         </div>
@@ -62,7 +62,7 @@ export function MyPageScreen() {
 
       {remoteEnabled ? (
         <section className="app-card mb-4 p-4">
-          <h2 className="text-[17px] font-black">Supabaseログイン</h2>
+          <h2 className="text-[17px] font-semibold">Supabaseログイン</h2>
           {remoteUserEmail ? (
             <p className="mt-2 text-[13px] font-bold text-[var(--muted)]">{remoteUserEmail} でログイン中</p>
           ) : (
@@ -74,7 +74,7 @@ export function MyPageScreen() {
                 placeholder="メールアドレス"
                 className="min-h-11 min-w-0 flex-1 rounded-[8px] border border-[var(--border)] px-3 text-[16px] font-semibold outline-none transition focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)]"
               />
-              <button onClick={sendLoginLink} className="tap-target rounded-[8px] bg-[var(--accent)] px-3 text-[13px] font-black text-white">
+              <button onClick={sendLoginLink} className="tap-target rounded-[8px] bg-[var(--accent)] px-3 text-[13px] font-semibold text-white">
                 送信
               </button>
             </div>
@@ -85,7 +85,7 @@ export function MyPageScreen() {
 
       <section className="mb-5">
         <div className="mb-3 flex items-end justify-between">
-          <h2 className="text-[19px] font-black tracking-[0]">自分のレビュー</h2>
+          <h2 className="text-[19px] font-semibold tracking-[0]">自分のレビュー</h2>
           <span className="text-[12px] font-bold text-[var(--muted)]">{myReviews.length}件</span>
         </div>
         {myReviews.length > 0 ? (
@@ -96,7 +96,7 @@ export function MyPageScreen() {
                 <article key={review.id} className="app-card p-4">
                   <div className="flex items-start justify-between gap-3">
                     <div className="min-w-0">
-                      <Link href={`/products/${review.productId}`} className="block truncate text-[16px] font-black">
+                      <Link href={`/products/${review.productId}`} className="block truncate text-[16px] font-semibold">
                         {product?.name ?? "不明な商品"}
                       </Link>
                       <p className="mt-1 text-[12px] font-bold text-[var(--muted)]">{formatDate(review.createdAt)}</p>
@@ -108,7 +108,7 @@ export function MyPageScreen() {
                     onClick={() => {
                       if (window.confirm("このローカルレビューを削除しますか？")) deleteLocalReview(review.id);
                     }}
-                    className="tap-target mt-3 rounded-[8px] border border-[#f2c7c7] px-4 text-[13px] font-black text-[var(--cola)]"
+                    className="tap-target mt-3 rounded-[8px] border border-[#f2c7c7] px-4 text-[13px] font-semibold text-[var(--cola)]"
                   >
                     削除
                   </button>
@@ -119,7 +119,7 @@ export function MyPageScreen() {
         ) : (
           <div className="soft-card p-4">
             <p className="text-[14px] leading-relaxed text-[var(--muted)]">まだ投稿したレビューはありません。</p>
-            <Link href="/reviews/new" className="tap-target mt-3 inline-flex items-center rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-black text-white">
+            <Link href="/reviews/new" className="tap-target mt-3 inline-flex items-center rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-semibold text-white">
               レビューを書く
             </Link>
           </div>
@@ -128,15 +128,15 @@ export function MyPageScreen() {
 
       <section>
         <div className="mb-3 flex items-end justify-between">
-          <h2 className="text-[19px] font-black tracking-[0]">商品リクエスト</h2>
+          <h2 className="text-[19px] font-semibold tracking-[0]">商品リクエスト</h2>
           <span className="text-[12px] font-bold text-[var(--muted)]">{requests.length}件</span>
         </div>
         <div className="space-y-2">
           {requests.length > 0 ? (
             requests.map((request) => (
               <div key={request.id} className="soft-card flex items-center justify-between gap-3 p-3">
-                <span className="min-w-0 truncate text-[14px] font-black">{request.name}</span>
-                <span className="rounded-full bg-white px-3 py-1 text-[12px] font-black text-[var(--accent-strong)]">
+                <span className="min-w-0 truncate text-[14px] font-semibold">{request.name}</span>
+                <span className="rounded-full bg-white px-3 py-1 text-[12px] font-semibold text-[var(--accent-strong)]">
                   {request.status}
                 </span>
               </div>

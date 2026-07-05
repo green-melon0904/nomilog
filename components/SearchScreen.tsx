@@ -91,7 +91,7 @@ export function SearchScreen() {
           placeholder="商品名・メーカーで検索"
           className="min-h-12 min-w-0 flex-1 bg-transparent text-[16px] font-bold outline-none"
         />
-        <button className="tap-target rounded-[8px] px-2 text-[13px] font-black text-[var(--accent-strong)]">
+        <button className="tap-target rounded-[8px] px-2 text-[13px] font-semibold text-[var(--accent-strong)]">
           検索
         </button>
       </form>
@@ -106,13 +106,13 @@ export function SearchScreen() {
       <div className="scrollbar-none -mx-1 mb-4 flex gap-2 overflow-x-auto px-1">
         <Select value={sort} onChange={(value) => setSort(value as SortKey)} options={[["popular", "人気順"], ["new", "新着"], ["rating", "評価"]]} />
         <Select value={location} onChange={setLocation} options={[["all", "購入場所"], ...purchaseLocations.map((item) => [item, item])]} />
-        <button onClick={() => syncUrl()} className="tap-target shrink-0 rounded-[8px] bg-[var(--accent)] px-4 text-[13px] font-black text-white">
+        <button onClick={() => syncUrl()} className="tap-target shrink-0 rounded-[8px] bg-[var(--accent)] px-4 text-[13px] font-semibold text-white">
           反映
         </button>
       </div>
 
       <div className="mb-3 flex items-end justify-between">
-        <p className="text-[14px] font-black text-[var(--muted)]">{results.length}件</p>
+        <p className="text-[14px] font-semibold text-[var(--muted)]">{results.length}件</p>
         <p className="text-[12px] font-bold text-[var(--muted)]">購入場所はレビュー情報から絞り込み</p>
       </div>
 
@@ -124,14 +124,14 @@ export function SearchScreen() {
         </div>
       ) : (
         <div className="soft-card p-4">
-          <p className="text-[16px] font-black">商品が見つかりません</p>
+          <p className="text-[16px] font-semibold">商品が見つかりません</p>
           <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">
             MVPでは商品はseed管理です。見つからない商品は追加リクエストとして保存できます。
           </p>
           <button
             disabled={!query.trim() || requested}
             onClick={requestProduct}
-            className="tap-target mt-3 rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-black text-white disabled:bg-[#b9d9ef]"
+            className="tap-target mt-3 rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-semibold text-white disabled:bg-[#b9d9ef]"
           >
             {requested ? "リクエスト済み" : "商品リクエストを送る"}
           </button>
@@ -145,7 +145,7 @@ function FilterButton({ active, label, onClick }: { active: boolean; label: stri
   return (
     <button
       onClick={onClick}
-      className={`tap-target shrink-0 rounded-full border px-4 text-[14px] font-black ${
+      className={`tap-target shrink-0 rounded-full border px-4 text-[14px] font-semibold ${
         active
           ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm"
           : "border-[var(--border)] bg-white text-[var(--text)]"
@@ -169,7 +169,7 @@ function Select({
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="tap-target shrink-0 rounded-[8px] border border-[var(--border)] bg-white px-3 text-[14px] font-black text-[var(--text)]"
+      className="tap-target shrink-0 rounded-[8px] border border-[var(--border)] bg-white px-3 text-[14px] font-semibold text-[var(--text)]"
     >
       {options.map(([optionValue, label]) => (
         <option key={optionValue} value={optionValue}>

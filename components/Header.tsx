@@ -22,7 +22,7 @@ export function Header({
         ) : null}
         <div className="flex min-w-0 items-center gap-2">
           {!backHref ? <span className="h-3 w-3 rounded-full bg-[var(--accent)] shadow-[0_0_0_5px_var(--accent-soft)]" /> : null}
-          <h1 className="truncate text-[24px] font-black tracking-[0] text-[var(--text)]">{title}</h1>
+          <h1 className="truncate text-[24px] font-semibold tracking-[0] text-[var(--text)]">{title}</h1>
         </div>
       </div>
       {action === "bell" ? (

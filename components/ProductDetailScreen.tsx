@@ -51,16 +51,16 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
           <img src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
         </div>
         <div className="p-4">
-          <p className="text-[24px] font-black leading-tight tracking-[0]">{product.name}</p>
+          <p className="text-[24px] font-semibold leading-tight tracking-[0]">{product.name}</p>
           <p className="mt-1 text-[13px] font-bold text-[var(--muted)]">
             {product.maker} / {getCategoryName(product.categoryId)}
           </p>
           <div className="mt-3 flex items-center justify-between gap-3">
             <div>
               <RatingStars value={stats.avgRating} size="md" />
-              <p className="mt-1 text-[13px] font-black">{stats.avgRating.toFixed(1)}点</p>
+              <p className="mt-1 text-[13px] font-semibold">{stats.avgRating.toFixed(1)}点</p>
             </div>
-            <p className="rounded-[8px] bg-[var(--accent-soft)] px-3 py-2 text-[13px] font-black text-[var(--accent-strong)]">
+            <p className="rounded-[8px] bg-[var(--accent-soft)] px-3 py-2 text-[13px] font-semibold text-[var(--accent-strong)]">
               {stats.reviewCount}件のレビュー
             </p>
           </div>
@@ -68,18 +68,18 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
       </section>
 
       <section className="app-card mb-4 space-y-3 p-4">
-        <h2 className="text-[17px] font-black">平均スコア</h2>
+        <h2 className="text-[17px] font-semibold">平均スコア</h2>
         <ScoreMeter label="甘さ" value={stats.avgSweetness} />
         <ScoreMeter label="炭酸" value={stats.avgCarbonation} max={4} />
         <ScoreMeter label="コスパ" value={stats.avgCostPerformance} />
       </section>
 
       <section className="app-card mb-4 p-4">
-        <h2 className="text-[17px] font-black">買える場所</h2>
+        <h2 className="text-[17px] font-semibold">買える場所</h2>
         <div className="mt-3 flex flex-wrap gap-2">
           {locations.length > 0 ? (
             locations.map((location) => (
-              <span key={location} className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-black text-[var(--accent-strong)]">
+              <span key={location} className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-semibold text-[var(--accent-strong)]">
                 {location}
               </span>
             ))
@@ -91,19 +91,19 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
 
       <Link
         href={`/reviews/new?productId=${product.id}`}
-        className="tap-target mb-5 flex items-center justify-center rounded-[8px] bg-[var(--accent)] px-4 text-[16px] font-black text-white shadow-sm"
+        className="tap-target mb-5 flex items-center justify-center rounded-[8px] bg-[var(--accent)] px-4 text-[16px] font-semibold text-white shadow-sm"
       >
         レビューを書く
       </Link>
 
       <section className="mb-5">
-        <h2 className="mb-3 text-[19px] font-black tracking-[0]">レビュー一覧</h2>
+        <h2 className="mb-3 text-[19px] font-semibold tracking-[0]">レビュー一覧</h2>
         <div className="space-y-3">
           {productReviews.map((review) => (
             <article key={review.id} className="app-card p-4">
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-[14px] font-black">{review.userName}</p>
+                  <p className="text-[14px] font-semibold">{review.userName}</p>
                   <p className="mt-1 text-[12px] font-bold text-[var(--muted)]">{formatDate(review.createdAt)}</p>
                 </div>
                 <RatingStars value={review.rating} />
@@ -127,7 +127,7 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
 
       <section className="mb-2">
         <div className="mb-3 flex items-end justify-between">
-          <h2 className="text-[19px] font-black tracking-[0]">似た味の商品</h2>
+          <h2 className="text-[19px] font-semibold tracking-[0]">似た味の商品</h2>
           <span className="text-[12px] font-bold text-[var(--muted)]">甘さ・炭酸で比較</span>
         </div>
         <div className="scrollbar-none -mx-1 flex gap-3 overflow-x-auto px-1 pb-1">
@@ -143,5 +143,5 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
 }
 
 function Tag({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[12px] font-black text-[var(--accent-strong)]">{children}</span>;
+  return <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[12px] font-semibold text-[var(--accent-strong)]">{children}</span>;
 }

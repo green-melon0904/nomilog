@@ -67,13 +67,13 @@ export function ReviewFormScreen() {
       <div className="screen">
         <HeaderlessTitle title="レビューを書く" onClose={() => router.back()} />
         <div className="soft-card p-4">
-          <p className="text-[17px] font-black">商品を選んでください</p>
+          <p className="text-[17px] font-semibold">商品を選んでください</p>
           <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">
             レビュー投稿は商品詳細から開始します。検索して、飲んだ商品を選んでください。
           </p>
           <Link
             href="/search"
-            className="tap-target mt-3 inline-flex items-center rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-black text-white"
+            className="tap-target mt-3 inline-flex items-center rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-semibold text-white"
           >
             商品を検索する
           </Link>
@@ -183,7 +183,7 @@ export function ReviewFormScreen() {
         </div>
         <div className="py-1">
           <p className="text-[12px] font-bold text-[var(--muted)]">商品</p>
-          <p className="mt-1 text-[17px] font-black leading-snug">{selectedProduct.name}</p>
+          <p className="mt-1 text-[17px] font-semibold leading-snug">{selectedProduct.name}</p>
           <p className="mt-1 text-[12px] font-bold text-[var(--muted)]">{selectedProduct.maker}</p>
         </div>
       </div>
@@ -231,7 +231,7 @@ export function ReviewFormScreen() {
                 type="button"
                 key={item}
                 onClick={() => toggleScene(item)}
-                className={`tap-target rounded-[8px] border px-4 text-[14px] font-black ${
+                className={`tap-target rounded-[8px] border px-4 text-[14px] font-semibold ${
                   scene.includes(item)
                     ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm"
                     : "border-[var(--border)] bg-white text-[var(--text)]"
@@ -264,7 +264,7 @@ export function ReviewFormScreen() {
         </Field>
 
         <Field label="写真（任意）">
-          <label className="tap-target flex cursor-pointer items-center justify-center rounded-[8px] border border-dashed border-[var(--accent)] bg-[var(--accent-soft)] px-4 text-[14px] font-black text-[var(--accent-strong)]">
+          <label className="tap-target flex cursor-pointer items-center justify-center rounded-[8px] border border-dashed border-[var(--accent)] bg-[var(--accent-soft)] px-4 text-[14px] font-semibold text-[var(--accent-strong)]">
             写真を追加
             <input
               type="file"
@@ -288,7 +288,7 @@ export function ReviewFormScreen() {
           ) : null}
           <button
             aria-describedby={formError ? "review-form-error" : undefined}
-            className="tap-target w-full rounded-[8px] bg-[var(--accent)] px-4 text-[16px] font-black text-white shadow-[0_12px_24px_rgba(42,155,225,0.22)] disabled:bg-[#b9d9ef]"
+            className="tap-target w-full rounded-[8px] bg-[var(--accent)] px-4 text-[16px] font-semibold text-white shadow-[0_12px_24px_rgba(42,155,225,0.22)] disabled:bg-[#b9d9ef]"
           >
             {disabled ? "未入力項目があります" : "投稿する"}
           </button>
@@ -301,10 +301,10 @@ export function ReviewFormScreen() {
 function HeaderlessTitle({ title, onClose }: { title: string; onClose: () => void }) {
   return (
     <div className="mb-4 flex h-12 items-center justify-between">
-      <button onClick={onClose} className="tap-target grid w-11 place-items-center rounded-[8px] bg-[var(--accent-soft)] text-[24px] font-black text-[var(--accent-strong)]" aria-label="閉じる">
+      <button onClick={onClose} className="tap-target grid w-11 place-items-center rounded-[8px] bg-[var(--accent-soft)] text-[24px] font-semibold text-[var(--accent-strong)]" aria-label="閉じる">
         ×
       </button>
-      <h1 className="text-[20px] font-black">{title}</h1>
+      <h1 className="text-[20px] font-semibold">{title}</h1>
       <span className="w-11" />
     </div>
   );
@@ -313,7 +313,7 @@ function HeaderlessTitle({ title, onClose }: { title: string; onClose: () => voi
 function Field({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <section className="app-card p-4">
-      <h2 className="mb-3 text-[16px] font-black">{label}</h2>
+      <h2 className="mb-3 text-[16px] font-semibold">{label}</h2>
       {children}
     </section>
   );
@@ -329,7 +329,7 @@ function NumberButtons({ value, onChange }: { value: number; onChange: (value: n
             type="button"
             key={next}
             onClick={() => onChange(next)}
-            className={`tap-target rounded-[8px] border text-[15px] font-black ${
+            className={`tap-target rounded-[8px] border text-[15px] font-semibold ${
               value === next ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm" : "border-[var(--border)] bg-white text-[var(--text)]"
             }`}
           >
@@ -357,7 +357,7 @@ function ChoiceGrid({
           type="button"
           key={value}
           onClick={() => onChange(value)}
-          className={`tap-target rounded-[8px] border px-4 text-[14px] font-black ${
+          className={`tap-target rounded-[8px] border px-4 text-[14px] font-semibold ${
             active === value ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm" : "border-[var(--border)] bg-white text-[var(--text)]"
           }`}
         >

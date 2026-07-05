@@ -31,7 +31,7 @@ export function HomeScreen() {
           <Link
             href={`/search?category=${category.slug}`}
             key={category.id}
-            className="tap-target inline-flex shrink-0 items-center rounded-full border border-[var(--border)] bg-white px-4 text-[14px] font-black text-[var(--accent-strong)] shadow-sm"
+            className="tap-target inline-flex shrink-0 items-center rounded-full border border-[var(--border)] bg-white px-4 text-[14px] font-semibold text-[var(--accent-strong)] shadow-sm"
           >
             {category.name}
           </Link>
@@ -40,8 +40,8 @@ export function HomeScreen() {
 
       <section className="mb-6">
         <div className="mb-3 flex items-end justify-between">
-          <h2 className="text-[19px] font-black tracking-[0]">今週のランキング</h2>
-          <Link href="/search?sort=popular" className="text-[13px] font-black text-[var(--accent-strong)]">
+          <h2 className="text-[19px] font-semibold tracking-[0]">今週のランキング</h2>
+          <Link href="/search?sort=popular" className="text-[13px] font-semibold text-[var(--accent-strong)]">
             すべて見る
           </Link>
         </div>
@@ -52,16 +52,16 @@ export function HomeScreen() {
               key={product.id}
               className="app-card grid grid-cols-[34px_1fr_auto] items-center gap-3 p-3"
             >
-              <span className="grid h-8 w-8 place-items-center rounded-[8px] bg-[var(--accent)] text-[15px] font-black text-white">
+              <span className="grid h-8 w-8 place-items-center rounded-[8px] bg-[var(--accent)] text-[15px] font-semibold text-white">
                 {index + 1}
               </span>
               <span className="min-w-0">
-                <span className="block truncate text-[15px] font-black">{product.name}</span>
+                <span className="block truncate text-[15px] font-semibold">{product.name}</span>
                 <span className="text-[12px] font-bold text-[var(--muted)]">{product.reviewCount}件のレビュー</span>
               </span>
               <span className="text-right">
                 <RatingStars value={product.avgRating} />
-                <span className="block text-[12px] font-black">{product.avgRating.toFixed(1)}</span>
+                <span className="block text-[12px] font-semibold">{product.avgRating.toFixed(1)}</span>
               </span>
             </Link>
           ))}
@@ -70,8 +70,8 @@ export function HomeScreen() {
 
       <section className="mb-6">
         <div className="mb-3 flex items-end justify-between">
-          <h2 className="text-[19px] font-black tracking-[0]">新着レビュー</h2>
-          <Link href="/reviews/new" className="text-[13px] font-black text-[var(--accent-strong)]">
+          <h2 className="text-[19px] font-semibold tracking-[0]">新着レビュー</h2>
+          <Link href="/reviews/new" className="text-[13px] font-semibold text-[var(--accent-strong)]">
             レビューを書く
           </Link>
         </div>
@@ -84,7 +84,7 @@ export function HomeScreen() {
               <Link href={`/products/${product.id}`} key={review.id} className="app-card grid grid-cols-[82px_1fr] gap-3 overflow-hidden p-2">
                 <ProductThumb src={product.imageUrl} alt={product.name} />
                 <span className="min-w-0 py-1 pr-1">
-                  <span className="block truncate text-[15px] font-black">{product.name}</span>
+                  <span className="block truncate text-[15px] font-semibold">{product.name}</span>
                   <span className="mt-1 block">
                     <RatingStars value={review.rating} />
                   </span>
@@ -102,7 +102,7 @@ export function HomeScreen() {
 
       <section className="mb-3">
         <div className="mb-3 flex items-end justify-between">
-          <h2 className="text-[19px] font-black tracking-[0]">気になる一本</h2>
+          <h2 className="text-[19px] font-semibold tracking-[0]">気になる一本</h2>
           <span className="text-[12px] font-bold text-[var(--muted)]">似た味で探せます</span>
         </div>
         <div className="grid grid-cols-2 gap-3">
