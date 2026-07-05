@@ -4,16 +4,17 @@
   /* アプリ全体で使う色をCSS変数に集約し、コンポーネント側は意味名で参照する。 */
   --background: #ffffff;
   --surface: #ffffff;
-  --surface-soft: #f6faf7;
-  --surface-warm: #fff7ed;
-  --text: #19201b;
-  --muted: #6a746d;
-  --border: #dfe8e1;
-  --accent: #22a06b;
-  --accent-strong: #14724c;
-  --cola: #d83a35;
-  --amber: #d99025;
-  --shadow: 0 18px 48px rgba(21, 58, 38, 0.08);
+  --surface-soft: #f3faff;
+  --surface-warm: #e9f6ff;
+  --text: #102033;
+  --muted: #697789;
+  --border: #dbe9f5;
+  --accent: #2a9be1;
+  --accent-strong: #116ca8;
+  --accent-soft: #e7f5ff;
+  --cola: #d84a4a;
+  --amber: #f4b740;
+  --shadow: 0 10px 30px rgba(42, 155, 225, 0.1);
 }
 
 * {
@@ -30,9 +31,7 @@ html {
 body {
   margin: 0;
   min-height: 100dvh;
-  background:
-    linear-gradient(180deg, rgba(246, 250, 247, 0.9), rgba(255, 255, 255, 0.8) 42%),
-    var(--background);
+  background: var(--background);
 }
 
 button,
@@ -77,7 +76,7 @@ a {
 }
 
 .soft-card {
-  border: 1px solid rgba(34, 160, 107, 0.16);
+  border: 1px solid rgba(42, 155, 225, 0.18);
   border-radius: 8px;
   background: var(--surface-soft);
 }
@@ -98,8 +97,6 @@ a {
 
 @media (min-width: 760px) {
   body {
-    background:
-      linear-gradient(90deg, rgba(246, 250, 247, 0.92), rgba(255, 255, 255, 1) 26%, rgba(255, 255, 255, 1) 74%, rgba(255, 247, 237, 0.9)),
-      #ffffff;
+    background: #ffffff;
   }
 }

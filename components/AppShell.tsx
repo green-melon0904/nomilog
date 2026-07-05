@@ -15,8 +15,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   return (
     <main className="mobile-shell">
       {children}
-      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-white/96 backdrop-blur">
-        <div className="mx-auto grid h-[74px] max-w-[480px] grid-cols-4 px-2 pt-2">
+      <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-[var(--border)] bg-white/95 shadow-[0_-12px_30px_rgba(16,32,51,0.06)] backdrop-blur">
+        <div className="mx-auto grid h-[76px] max-w-[480px] grid-cols-4 px-2 pt-2">
           {navItems.map((item) => (
             <BottomNavItem key={item.href} {...item} />
           ))}
@@ -53,8 +53,8 @@ function BottomNavItem({
       href={href}
       onClick={guardDirtyForm}
       aria-current={active ? "page" : undefined}
-      className={`tap-target flex flex-col items-center justify-center gap-1 rounded-[8px] text-[11px] font-semibold ${
-        active ? "text-[var(--accent-strong)]" : "text-[var(--muted)]"
+      className={`tap-target flex flex-col items-center justify-center gap-1 rounded-[8px] text-[11px] font-bold transition ${
+        active ? "bg-[var(--accent-soft)] text-[var(--accent-strong)]" : "text-[var(--muted)]"
       }`}
     >
       <Icon className="h-5 w-5" />

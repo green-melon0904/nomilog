@@ -75,7 +75,7 @@ export function SearchScreen() {
       <Header title={query ? `検索結果: ${query}` : "検索・ランキング"} backHref="/" action="none" />
 
       <form
-        className="mb-3 flex items-center gap-2 rounded-[8px] border border-[var(--border)] bg-white px-3 shadow-sm"
+        className="mb-3 flex items-center gap-2 rounded-[8px] border border-[var(--border)] bg-white px-3 shadow-sm focus-within:border-[var(--accent)]"
         onSubmit={(event) => {
           event.preventDefault();
           syncUrl();
@@ -131,7 +131,7 @@ export function SearchScreen() {
           <button
             disabled={!query.trim() || requested}
             onClick={requestProduct}
-            className="tap-target mt-3 rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-black text-white disabled:bg-[#b6c8bd]"
+            className="tap-target mt-3 rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-black text-white disabled:bg-[#b9d9ef]"
           >
             {requested ? "リクエスト済み" : "商品リクエストを送る"}
           </button>
@@ -147,7 +147,7 @@ function FilterButton({ active, label, onClick }: { active: boolean; label: stri
       onClick={onClick}
       className={`tap-target shrink-0 rounded-full border px-4 text-[14px] font-black ${
         active
-          ? "border-[var(--accent)] bg-[var(--accent)] text-white"
+          ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm"
           : "border-[var(--border)] bg-white text-[var(--text)]"
       }`}
     >
@@ -169,7 +169,7 @@ function Select({
     <select
       value={value}
       onChange={(event) => onChange(event.target.value)}
-      className="tap-target shrink-0 rounded-[8px] border border-[var(--border)] bg-white px-3 text-[14px] font-black"
+      className="tap-target shrink-0 rounded-[8px] border border-[var(--border)] bg-white px-3 text-[14px] font-black text-[var(--text)]"
     >
       {options.map(([optionValue, label]) => (
         <option key={optionValue} value={optionValue}>

@@ -20,7 +20,7 @@ export function HomeScreen() {
 
       <Link
         href="/search"
-        className="tap-target mb-4 flex items-center gap-3 rounded-[8px] border border-[var(--border)] bg-white px-4 text-[16px] font-bold text-[var(--muted)] shadow-sm"
+        className="tap-target mb-4 flex items-center gap-3 rounded-[8px] border border-[var(--border)] bg-white px-4 text-[16px] font-bold text-[var(--text)] shadow-sm"
       >
         <SearchIcon className="h-5 w-5 text-[var(--accent)]" />
         キーワード検索
@@ -31,7 +31,7 @@ export function HomeScreen() {
           <Link
             href={`/search?category=${category.slug}`}
             key={category.id}
-            className="tap-target inline-flex shrink-0 items-center rounded-full border border-[var(--border)] bg-white px-4 text-[14px] font-black"
+            className="tap-target inline-flex shrink-0 items-center rounded-full border border-[var(--border)] bg-white px-4 text-[14px] font-black text-[var(--accent-strong)] shadow-sm"
           >
             {category.name}
           </Link>
@@ -52,7 +52,7 @@ export function HomeScreen() {
               key={product.id}
               className="app-card grid grid-cols-[34px_1fr_auto] items-center gap-3 p-3"
             >
-              <span className="grid h-8 w-8 place-items-center rounded-[8px] bg-[var(--surface-warm)] text-[15px] font-black text-[var(--cola)]">
+              <span className="grid h-8 w-8 place-items-center rounded-[8px] bg-[var(--accent)] text-[15px] font-black text-white">
                 {index + 1}
               </span>
               <span className="min-w-0">

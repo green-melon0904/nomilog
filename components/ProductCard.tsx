@@ -7,8 +7,8 @@ export function ProductCard({ product, compact = false }: { product: ProductWith
   // 一覧・ホーム・似た味の商品で同じ見た目を使い回すカード。
   // productは集計済みのProductWithStatsを受け取り、カード内で再計算しないようにしている。
   return (
-    <Link href={`/products/${product.id}`} className="app-card block overflow-hidden">
-      <div className={compact ? "relative h-28" : "relative h-36"}>
+    <Link href={`/products/${product.id}`} className="app-card block overflow-hidden transition hover:-translate-y-0.5 hover:border-[var(--accent)]">
+      <div className={`${compact ? "relative h-28" : "relative h-36"} bg-[var(--surface-soft)]`}>
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
       </div>

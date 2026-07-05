@@ -197,7 +197,7 @@ export function ReviewFormScreen() {
                   key={index}
                   type="button"
                   onClick={() => setRating(index + 1)}
-                  className="tap-target w-10 rounded-[8px] text-[28px] leading-none text-[var(--amber)]"
+                  className="tap-target w-10 rounded-[8px] text-[28px] leading-none text-[var(--amber)] transition hover:bg-[var(--accent-soft)]"
                   aria-label={`${index + 1}点`}
                 >
                   {index < rating ? "★" : "☆"}
@@ -233,8 +233,8 @@ export function ReviewFormScreen() {
                 onClick={() => toggleScene(item)}
                 className={`tap-target rounded-[8px] border px-4 text-[14px] font-black ${
                   scene.includes(item)
-                    ? "border-[var(--accent)] bg-[var(--accent)] text-white"
-                    : "border-[var(--border)] bg-white"
+                    ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm"
+                    : "border-[var(--border)] bg-white text-[var(--text)]"
                 }`}
               >
                 {item}
@@ -258,13 +258,13 @@ export function ReviewFormScreen() {
             rows={4}
             placeholder="味・買った場所・飲みたいシーンをメモ"
             aria-invalid={!comment.trim()}
-            className="w-full resize-none rounded-[8px] border border-[var(--border)] bg-white p-3 text-[16px] font-semibold leading-relaxed outline-none focus:border-[var(--accent)]"
+            className="w-full resize-none rounded-[8px] border border-[var(--border)] bg-white p-3 text-[16px] font-semibold leading-relaxed outline-none transition focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)]"
           />
           <p className="mt-1 text-right text-[12px] font-bold text-[var(--muted)]">{comment.length}/300</p>
         </Field>
 
         <Field label="写真（任意）">
-          <label className="tap-target flex cursor-pointer items-center justify-center rounded-[8px] border border-dashed border-[var(--accent)] bg-[var(--surface-soft)] px-4 text-[14px] font-black text-[var(--accent-strong)]">
+          <label className="tap-target flex cursor-pointer items-center justify-center rounded-[8px] border border-dashed border-[var(--accent)] bg-[var(--accent-soft)] px-4 text-[14px] font-black text-[var(--accent-strong)]">
             写真を追加
             <input
               type="file"
@@ -282,13 +282,13 @@ export function ReviewFormScreen() {
 
         <div className="sticky bottom-[calc(86px+env(safe-area-inset-bottom))] z-10 space-y-2">
           {formError ? (
-            <p id="review-form-error" role="alert" className="rounded-[8px] border border-[#f0c4c1] bg-[#fff3f2] p-3 text-[13px] font-bold text-[var(--cola)]">
+            <p id="review-form-error" role="alert" className="rounded-[8px] border border-[#f2c7c7] bg-[#fff5f5] p-3 text-[13px] font-bold text-[var(--cola)]">
               {formError}
             </p>
           ) : null}
           <button
             aria-describedby={formError ? "review-form-error" : undefined}
-            className="tap-target w-full rounded-[8px] bg-[var(--accent)] px-4 text-[16px] font-black text-white shadow-lg disabled:bg-[#b6c8bd]"
+            className="tap-target w-full rounded-[8px] bg-[var(--accent)] px-4 text-[16px] font-black text-white shadow-[0_12px_24px_rgba(42,155,225,0.22)] disabled:bg-[#b9d9ef]"
           >
             {disabled ? "未入力項目があります" : "投稿する"}
           </button>
@@ -301,7 +301,7 @@ export function ReviewFormScreen() {
 function HeaderlessTitle({ title, onClose }: { title: string; onClose: () => void }) {
   return (
     <div className="mb-4 flex h-12 items-center justify-between">
-      <button onClick={onClose} className="tap-target grid w-11 place-items-center rounded-[8px] text-[24px] font-black" aria-label="閉じる">
+      <button onClick={onClose} className="tap-target grid w-11 place-items-center rounded-[8px] bg-[var(--accent-soft)] text-[24px] font-black text-[var(--accent-strong)]" aria-label="閉じる">
         ×
       </button>
       <h1 className="text-[20px] font-black">{title}</h1>
@@ -330,7 +330,7 @@ function NumberButtons({ value, onChange }: { value: number; onChange: (value: n
             key={next}
             onClick={() => onChange(next)}
             className={`tap-target rounded-[8px] border text-[15px] font-black ${
-              value === next ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] bg-white"
+              value === next ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm" : "border-[var(--border)] bg-white text-[var(--text)]"
             }`}
           >
             {next}
@@ -358,7 +358,7 @@ function ChoiceGrid({
           key={value}
           onClick={() => onChange(value)}
           className={`tap-target rounded-[8px] border px-4 text-[14px] font-black ${
-            active === value ? "border-[var(--accent)] bg-[var(--accent)] text-white" : "border-[var(--border)] bg-white"
+            active === value ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm" : "border-[var(--border)] bg-white text-[var(--text)]"
           }`}
         >
           {label}

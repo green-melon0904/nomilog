@@ -7,7 +7,7 @@ export function RatingStars({ value, size = "sm" }: { value: number; size?: "sm"
   return (
     <span className={`inline-flex items-center gap-[1px] ${textSize}`} aria-label={`${value.toFixed(1)}点`}>
       {Array.from({ length: 5 }).map((_, index) => (
-        <span key={index} className={index < rounded ? "text-[var(--amber)]" : "text-[#cfd8d2]"}>
+        <span key={index} className={index < rounded ? "text-[var(--amber)]" : "text-[#d7e3ee]"}>
           ★
         </span>
       ))}

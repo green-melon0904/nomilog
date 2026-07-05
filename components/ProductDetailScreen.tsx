@@ -46,7 +46,7 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
       <Header title={product.name} backHref="/search" action="none" />
 
       <section className="app-card mb-4 overflow-hidden">
-        <div className="relative h-[230px]">
+        <div className="relative h-[230px] bg-[var(--surface-soft)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={product.imageUrl} alt={product.name} className="h-full w-full object-contain" />
         </div>
@@ -60,7 +60,7 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
               <RatingStars value={stats.avgRating} size="md" />
               <p className="mt-1 text-[13px] font-black">{stats.avgRating.toFixed(1)}点</p>
             </div>
-            <p className="rounded-[8px] bg-[var(--surface-soft)] px-3 py-2 text-[13px] font-black text-[var(--accent-strong)]">
+            <p className="rounded-[8px] bg-[var(--accent-soft)] px-3 py-2 text-[13px] font-black text-[var(--accent-strong)]">
               {stats.reviewCount}件のレビュー
             </p>
           </div>
@@ -79,7 +79,7 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
         <div className="mt-3 flex flex-wrap gap-2">
           {locations.length > 0 ? (
             locations.map((location) => (
-              <span key={location} className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-black">
+              <span key={location} className="rounded-full border border-[var(--border)] bg-white px-3 py-2 text-[13px] font-black text-[var(--accent-strong)]">
                 {location}
               </span>
             ))
@@ -143,5 +143,5 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
 }
 
 function Tag({ children }: { children: React.ReactNode }) {
-  return <span className="rounded-full bg-[var(--surface-soft)] px-3 py-1 text-[12px] font-black text-[var(--accent-strong)]">{children}</span>;
+  return <span className="rounded-full bg-[var(--accent-soft)] px-3 py-1 text-[12px] font-black text-[var(--accent-strong)]">{children}</span>;
 }

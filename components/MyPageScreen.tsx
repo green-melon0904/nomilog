@@ -50,7 +50,7 @@ export function MyPageScreen() {
 
       <section className="app-card mb-4 p-4">
         <div className="flex items-center gap-3">
-          <div className="grid h-14 w-14 place-items-center rounded-[8px] bg-[var(--accent)] text-[24px] font-black text-white">
+          <div className="grid h-14 w-14 place-items-center rounded-[8px] bg-[var(--accent)] text-[24px] font-black text-white shadow-[0_10px_22px_rgba(42,155,225,0.22)]">
             {demoUser.avatarUrl}
           </div>
           <div>
@@ -72,7 +72,7 @@ export function MyPageScreen() {
                 onChange={(event) => setEmail(event.target.value)}
                 type="email"
                 placeholder="メールアドレス"
-                className="min-h-11 min-w-0 flex-1 rounded-[8px] border border-[var(--border)] px-3 text-[16px] font-semibold outline-none"
+                className="min-h-11 min-w-0 flex-1 rounded-[8px] border border-[var(--border)] px-3 text-[16px] font-semibold outline-none transition focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)]"
               />
               <button onClick={sendLoginLink} className="tap-target rounded-[8px] bg-[var(--accent)] px-3 text-[13px] font-black text-white">
                 送信
@@ -108,7 +108,7 @@ export function MyPageScreen() {
                     onClick={() => {
                       if (window.confirm("このローカルレビューを削除しますか？")) deleteLocalReview(review.id);
                     }}
-                    className="tap-target mt-3 rounded-[8px] border border-[var(--border)] px-4 text-[13px] font-black text-[var(--cola)]"
+                    className="tap-target mt-3 rounded-[8px] border border-[#f2c7c7] px-4 text-[13px] font-black text-[var(--cola)]"
                   >
                     削除
                   </button>
