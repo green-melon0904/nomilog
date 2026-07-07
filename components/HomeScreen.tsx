@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Header } from "@/components/Header";
 import { ProductCard } from "@/components/ProductCard";
 import { RatingStars } from "@/components/RatingStars";
 import { SearchIcon } from "@/components/icons";
@@ -16,8 +15,6 @@ export function HomeScreen() {
 
   return (
     <div className="screen">
-      <Header />
-
       <Link
         href="/search"
         className="tap-target mb-4 flex items-center gap-3 rounded-[8px] border border-[var(--border)] bg-white px-4 text-[16px] font-bold text-[var(--text)] shadow-sm"

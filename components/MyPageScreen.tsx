@@ -2,7 +2,6 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { Header } from "@/components/Header";
 import { RatingStars } from "@/components/RatingStars";
 import { deleteLocalReview, demoUser, formatDate, products, readProductRequests } from "@/lib/nomilog-data";
 import { useNomilogReviews } from "@/components/useNomilogReviews";
@@ -46,8 +45,6 @@ export function MyPageScreen() {
 
   return (
     <div className="screen">
-      <Header title="マイページ" backHref="/" action="none" />
-
       <section className="app-card mb-4 p-4">
         <div className="flex items-center gap-3">
           <div className="grid h-14 w-14 place-items-center rounded-[8px] bg-[var(--accent)] text-[24px] font-semibold text-white shadow-[0_10px_22px_rgba(42,155,225,0.22)]">

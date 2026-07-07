@@ -1,7 +1,6 @@
 "use client";
 
 import Link from "next/link";
-import { Header } from "@/components/Header";
 import { ProductCard } from "@/components/ProductCard";
 import { RatingStars } from "@/components/RatingStars";
 import { ScoreMeter } from "@/components/ScoreMeter";
@@ -22,7 +21,6 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
   if (!product) {
     return (
       <div className="screen">
-        <Header title="商品が見つかりません" backHref="/search" action="none" />
         <div className="soft-card p-4">
           <p className="text-[14px] leading-relaxed text-[var(--muted)]">検索画面から別の商品を探してください。</p>
         </div>
@@ -43,8 +41,6 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
 
   return (
     <div className="screen">
-      <Header title={product.name} backHref="/search" action="none" />
-
       <section className="app-card mb-4 overflow-hidden">
         <div className="relative h-[230px] bg-[var(--surface-soft)]">
           {/* eslint-disable-next-line @next/next/no-img-element */}

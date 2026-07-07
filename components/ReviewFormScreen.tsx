@@ -65,7 +65,6 @@ export function ReviewFormScreen() {
     // MVPでは商品詳細から投稿開始する導線に寄せ、まず検索画面へ戻して商品を選ばせる。
     return (
       <div className="screen">
-        <HeaderlessTitle title="レビューを書く" onClose={() => router.back()} />
         <div className="soft-card p-4">
           <p className="text-[17px] font-semibold">商品を選んでください</p>
           <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">
@@ -162,18 +161,10 @@ export function ReviewFormScreen() {
     }
   }
 
-  function closeForm() {
-    // 画面左上の閉じる操作でも、ボトムナビやリロードと同じく未保存レビューを守る。
-    if (dirty && !submitted && !window.confirm("入力中のレビューを破棄しますか？")) return;
-    router.back();
-  }
-
   const disabled = rating < 1 || !comment.trim() || scene.length === 0;
 
   return (
     <div className="screen">
-      <HeaderlessTitle title="レビューを書く" onClose={closeForm} />
-
       <LoginNotice compact />
 
       <div className="app-card my-4 grid grid-cols-[72px_1fr] gap-3 overflow-hidden p-2">
@@ -294,18 +285,6 @@ export function ReviewFormScreen() {
           </button>
         </div>
       </form>
-    </div>
-  );
-}
-
-function HeaderlessTitle({ title, onClose }: { title: string; onClose: () => void }) {
-  return (
-    <div className="mb-4 flex h-12 items-center justify-between">
-      <button onClick={onClose} className="tap-target grid w-11 place-items-center rounded-[8px] bg-[var(--accent-soft)] text-[24px] font-semibold text-[var(--accent-strong)]" aria-label="閉じる">
-        ×
-      </button>
-      <h1 className="text-[20px] font-semibold">{title}</h1>
-      <span className="w-11" />
     </div>
   );
 }

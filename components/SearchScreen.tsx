@@ -2,7 +2,6 @@
 
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Header } from "@/components/Header";
 import { ProductCard } from "@/components/ProductCard";
 import { SearchIcon } from "@/components/icons";
 import {
@@ -72,8 +71,6 @@ export function SearchScreen() {
 
   return (
     <div className="screen">
-      <Header title={query ? `検索結果: ${query}` : "検索・ランキング"} backHref="/" action="none" />
-
       <form
         className="mb-3 flex items-center gap-2 rounded-[8px] border border-[var(--border)] bg-white px-3 shadow-sm focus-within:border-[var(--accent)]"
         onSubmit={(event) => {
