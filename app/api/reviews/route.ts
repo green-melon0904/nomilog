@@ -96,11 +96,11 @@ export async function POST(request: NextRequest) {
 
     const profileName = [auth.user.firstName, auth.user.lastName].filter(Boolean).join(" ") || auth.user.email.split("@")[0] || "のみログユーザー";
 
-    // WorkOSのsubjectをサーバー側でプロフィールへ設定する。ユーザーIDをリクエスト本文から
-    // 受け取らないことで、他人のプロフィールやレビューを本人の投稿として作成できない。
+    // 初回投稿時だけプロフィール行を用意する。既存行を更新しないことで、プロフィール編集で
+    // 保存した表示名が、レビュー投稿のたびにWorkOSの初期名へ戻ることを防ぐ。
     const { error: profileError } = await supabase.from("profiles").upsert(
       { user_id: auth.user.id, name: profileName },
-      { onConflict: "user_id" }
+      { onConflict: "user_id", ignoreDuplicates: true }
     );
     if (profileError) throw profileError;
 

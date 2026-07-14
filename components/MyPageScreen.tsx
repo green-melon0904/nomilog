@@ -23,9 +23,10 @@ import {
   MessageSquareMore,
   Pencil,
   Star,
-  UserRound
+  UserRound,
+  X
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { RatingStars } from "@/components/RatingStars";
 import { enrichProducts, getRanking } from "@/lib/nomilog-data";
 import { hasSupabaseEnv } from "@/lib/supabase";
@@ -41,6 +42,30 @@ type AuthUser = {
 };
 
 /**
+ * Supabase未設定時の表示名を、SSRとブラウザで同じ初期値から同期する。
+ *
+ * localStorageをuseStateの初期化中に読むと、サーバーの既定名とブラウザの保存名が最初から
+ * 食い違ってHydration mismatchになる。外部ストアとして購読し、Hydration後にだけ保存値へ
+ * 切り替えることで、ローカル確認モードの永続化とReactの描画整合性を両立する。
+ */
+function subscribeToLocalProfileName(onChange: () => void) {
+  window.addEventListener("storage", onChange);
+  window.addEventListener("nomilog:profile", onChange);
+  return () => {
+    window.removeEventListener("storage", onChange);
+    window.removeEventListener("nomilog:profile", onChange);
+  };
+}
+
+function readLocalProfileName() {
+  return window.localStorage.getItem("nomilog.profileName")?.trim() || "のみログユーザー";
+}
+
+function readServerProfileName() {
+  return "のみログユーザー";
+}
+
+/**
  * 認証状態を読み込み、ログイン前後のマイページを適切な状態で描画する。
  * 認証確認中・未ログイン・ログイン済みを分けて描画し、確認前に個人レビューを一瞬表示したり
  * 未ログイン画面へ誤って操作ボタンを出したりする状態を避ける。
@@ -51,6 +76,7 @@ export function MyPageScreen() {
   const remoteEnabled = hasSupabaseEnv();
   const [authStatus, setAuthStatus] = useState<"loading" | "signed-in" | "signed-out" | "unavailable">(remoteEnabled ? "loading" : "signed-in");
   const [remoteUser, setRemoteUser] = useState<AuthUser | null>(null);
+  const localProfileName = useSyncExternalStore(subscribeToLocalProfileName, readLocalProfileName, readServerProfileName);
 
   // 本番はWorkOS subject、Supabase未設定のローカル確認は固定IDで投稿者を特定する。
   // 表示名は変更や重複が起きるため、所有者判定に使わない。
@@ -62,7 +88,9 @@ export function MyPageScreen() {
   );
   const featuredProducts = useMemo(() => getRanking(reviews, 4, catalog), [catalog, reviews]);
   const allProducts = useMemo(() => enrichProducts(reviews, catalog), [catalog, reviews]);
-  const profileName = remoteUser?.name.trim() || remoteUser?.email.split("@")[0] || "のみログユーザー";
+  const profileName = remoteEnabled
+    ? remoteUser?.name.trim() || remoteUser?.email.split("@")[0] || "のみログユーザー"
+    : localProfileName;
 
   useEffect(() => {
     if (!remoteEnabled) return;
@@ -91,6 +119,29 @@ export function MyPageScreen() {
     window.location.assign(`${mode === "sign-up" ? "/sign-up" : "/sign-in"}?next=%2Fmypage`);
   }
 
+  async function saveProfileName(name: string) {
+    if (!remoteEnabled) {
+      // Supabase未設定のseed確認モードでも編集導線を試せるよう、表示名だけを端末へ保存する。
+      // 本番データと混ざらないローカル確認用のフォールバックであり、WorkOS利用時はAPIへ送る。
+      window.localStorage.setItem("nomilog.profileName", name);
+      window.dispatchEvent(new Event("nomilog:profile"));
+      return;
+    }
+
+    const response = await fetch("/api/profile", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name })
+    });
+    const result = await response.json().catch(() => null) as { error?: string; profile?: { name?: string } } | null;
+    if (!response.ok) throw new Error(result?.error ?? "プロフィールの保存に失敗しました。");
+
+    const savedName = result?.profile?.name?.trim() || name;
+    setRemoteUser((current) => current ? { ...current, name: savedName } : current);
+    // 別画面のレビューカードにも変更後の投稿者名を再取得させ、プロフィールだけ古い名前を残さない。
+    window.dispatchEvent(new Event("nomilog:reviews"));
+  }
+
   const signedIn = !remoteEnabled || authStatus === "signed-in";
   const isLoading = remoteEnabled && authStatus === "loading";
 
@@ -104,6 +155,7 @@ export function MyPageScreen() {
           myReviews={myReviews}
           featuredProducts={featuredProducts}
           allProducts={allProducts}
+          onProfileNameSaved={saveProfileName}
         />
       ) : (
         <SignedOutMyPage
@@ -193,20 +245,30 @@ function SignedInMyPage({
   joinedAt,
   myReviews,
   featuredProducts,
-  allProducts
+  allProducts,
+  onProfileNameSaved
 }: {
   profileName: string;
   joinedAt?: string;
   myReviews: Review[];
   featuredProducts: ProductWithStats[];
   allProducts: ProductWithStats[];
+  onProfileNameSaved: (name: string) => Promise<void>;
 }) {
+  const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const joinedLabel = joinedAt ? new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric" }).format(new Date(joinedAt)) : "メールコードで認証済み";
   const recentReviews = myReviews.slice(0, 2);
   const savedProducts = featuredProducts.length > 0 ? featuredProducts : allProducts.slice(0, 4);
 
   return (
     <div className="pt-4">
+      <ProfileEditDialog
+        key={profileEditorOpen ? profileName : "closed"}
+        open={profileEditorOpen}
+        initialName={profileName}
+        onClose={() => setProfileEditorOpen(false)}
+        onSaved={onProfileNameSaved}
+      />
       <section className="app-card p-5">
         <div className="flex items-start gap-4">
           <ProfileAvatar large />
@@ -216,7 +278,7 @@ function SignedInMyPage({
                 <h2 className="truncate text-[25px] leading-none">{profileName}</h2>
                 <p className="mt-2 text-[14px] font-normal text-[#454b52]">炭酸とお茶が好き</p>
               </div>
-              <button type="button" title="プロフィール編集は準備中です" className="tap-target shrink-0 rounded-full border border-[var(--accent)] px-3 text-[12px] text-[var(--accent)]">
+              <button type="button" onClick={() => setProfileEditorOpen(true)} title="プロフィールを編集" className="tap-target shrink-0 rounded-full border border-[var(--accent)] px-3 text-[12px] text-[var(--accent)]">
                 <span className="inline-flex items-center gap-1"><Pencil className="h-3.5 w-3.5" strokeWidth={1.9} />プロフィール編集</span>
               </button>
             </div>
@@ -263,7 +325,7 @@ function SignedInMyPage({
       <section className="pt-6">
         <SectionTitle title="設定" />
         <div className="soft-card overflow-hidden">
-          <SupportRow icon={UserRound} label="プロフィール編集" />
+          <SupportRow icon={UserRound} label="プロフィール編集" onClick={() => setProfileEditorOpen(true)} />
           <SupportRow icon={Bell} label="通知設定" />
           <SupportRow icon={Heart} label="お気に入り管理" />
           <Link href="/sign-out" className="tap-target flex items-center gap-4 border-b-0 px-5 text-[15px] text-[var(--text)]">
@@ -273,6 +335,103 @@ function SignedInMyPage({
           </Link>
         </div>
       </section>
+    </div>
+  );
+}
+
+/**
+ * マイページから表示名を編集するモーダル。
+ *
+ * 編集内容を即時保存せず、保存ボタンを押したときだけAPIへ送る。入力中に別画面へ移動しても
+ * レビューの未保存状態とは別の短い操作なので、プロフィール編集では確認ダイアログを増やさず、
+ * Escapeとキャンセルで閉じられるシンプルな操作にする。
+ */
+function ProfileEditDialog({
+  open,
+  initialName,
+  onClose,
+  onSaved
+}: {
+  open: boolean;
+  initialName: string;
+  onClose: () => void;
+  onSaved: (name: string) => Promise<void>;
+}) {
+  const [name, setName] = useState(initialName);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const previousOverflow = document.body.style.overflow;
+    const handleKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !saving) onClose();
+    };
+
+    document.body.style.overflow = "hidden";
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      document.body.style.overflow = previousOverflow;
+      window.removeEventListener("keydown", handleKeyDown);
+    };
+  }, [onClose, open, saving]);
+
+  if (!open) return null;
+
+  async function handleSubmit(event: React.FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const normalizedName = name.normalize("NFKC").trim();
+    if (!normalizedName || normalizedName.length > 30 || /[\u0000-\u001f\u007f]/.test(normalizedName)) {
+      setError("表示名は1〜30文字で入力してください。");
+      return;
+    }
+
+    setSaving(true);
+    setError(null);
+    try {
+      await onSaved(normalizedName);
+      onClose();
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : "プロフィールの保存に失敗しました。");
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(22,25,29,0.35)] px-4 pb-4 pt-10 sm:items-center">
+      <div role="dialog" aria-modal="true" aria-labelledby="profile-edit-title" aria-describedby="profile-edit-description" className="app-card w-full max-w-[420px] p-5 shadow-[0_18px_45px_rgba(17,24,39,0.2)]">
+        <div className="flex items-center justify-between gap-4">
+          <h2 id="profile-edit-title" className="text-[19px]">プロフィールを編集</h2>
+          <button type="button" onClick={onClose} disabled={saving} aria-label="プロフィール編集を閉じる" title="閉じる" className="tap-target grid w-11 place-items-center rounded-full text-[var(--muted)] hover:bg-[var(--surface-soft)] disabled:opacity-50">
+            <X className="h-5 w-5" strokeWidth={1.8} />
+          </button>
+        </div>
+        <p id="profile-edit-description" className="mt-2 text-[12px] font-normal leading-relaxed text-[var(--muted)]">レビューやマイページに表示する名前を変更できます。</p>
+        <form onSubmit={handleSubmit} className="mt-5">
+          <label htmlFor="profile-name" className="text-[13px]">表示名</label>
+          <input
+            id="profile-name"
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            maxLength={30}
+            required
+            autoComplete="nickname"
+            autoFocus
+            aria-invalid={Boolean(error)}
+            className="mt-2 min-h-11 w-full rounded-[10px] border border-[var(--border)] bg-white px-4 text-[16px] outline-none transition-colors focus:border-[var(--accent)]"
+          />
+          <div className="mt-2 flex justify-between gap-3 text-[11px] font-normal text-[var(--muted)]">
+            <span>1〜30文字</span>
+            <span>{name.length}/30</span>
+          </div>
+          {error ? <p role="alert" className="mt-3 rounded-[8px] bg-[#fff1f2] px-3 py-2 text-[12px] text-[#c53d47]">{error}</p> : null}
+          <div className="mt-5 grid grid-cols-2 gap-3">
+            <button type="button" onClick={onClose} disabled={saving} className="tap-target rounded-[10px] border border-[var(--border)] bg-white px-4 text-[14px] disabled:opacity-50">キャンセル</button>
+            <button type="submit" disabled={saving} className="tap-target rounded-[10px] bg-[var(--accent)] px-4 text-[14px] !text-white shadow-[0_5px_14px_rgba(42,155,225,0.2)] disabled:opacity-60">{saving ? "保存中…" : "保存する"}</button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
@@ -369,12 +528,22 @@ function FeatureRow({ icon: Icon, title, description }: { icon: typeof Heart; ti
   );
 }
 
-function SupportRow({ icon: Icon, label }: { icon: typeof Heart; label: string }) {
-  return (
-    <div className="flex min-h-[56px] items-center gap-4 border-b border-[var(--border)] px-5 last:border-b-0">
+function SupportRow({ icon: Icon, label, onClick }: { icon: typeof Heart; label: string; onClick?: () => void }) {
+  const content = (
+    <>
       <Icon className="h-5 w-5 text-[var(--text)]" strokeWidth={1.7} />
-      <span className="flex-1 text-[15px]">{label}</span>
+      <span className="flex-1 text-left text-[15px]">{label}</span>
       <ChevronRight className="h-5 w-5" strokeWidth={1.7} />
+    </>
+  );
+
+  return onClick ? (
+    <button type="button" onClick={onClick} className="tap-target flex min-h-[56px] w-full items-center gap-4 border-b border-[var(--border)] px-5 last:border-b-0">
+      {content}
+    </button>
+  ) : (
+    <div className="flex min-h-[56px] items-center gap-4 border-b border-[var(--border)] px-5 last:border-b-0">
+      {content}
     </div>
   );
 }

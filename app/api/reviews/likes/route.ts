@@ -140,9 +140,10 @@ async function updateLike(request: NextRequest, shouldLike: boolean) {
 }
 
 /**
- * いいね行の外部キーを満たすため、本人のプロフィールだけを作成または更新する。
+ * いいね行の外部キーを満たすため、本人のプロフィールがなければ作成する。
  * WorkOSのユーザーはSupabase Authのトリガーで自動作成されないため、レビューやいいねの保存
- * 入口で本人のsubjectに限ってプロフィールを整える。他ユーザーの行は作成しない。
+ * 入口で本人のsubjectに限ってプロフィールを整える。既存の表示名は上書きせず、他ユーザーの行も
+ * 作成しない。
  */
 async function ensureProfile(
   supabase: ReturnType<typeof createWorkOSSupabaseClient>,
@@ -154,7 +155,7 @@ async function ensureProfile(
   const name = [firstName, lastName].filter(Boolean).join(" ") || email.split("@")[0] || "のみログユーザー";
   const { error } = await supabase.from("profiles").upsert(
     { user_id: userId, name },
-    { onConflict: "user_id" }
+    { onConflict: "user_id", ignoreDuplicates: true }
   );
   if (error) throw error;
 }
