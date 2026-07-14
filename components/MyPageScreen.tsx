@@ -269,25 +269,23 @@ function SignedInMyPage({
         onClose={() => setProfileEditorOpen(false)}
         onSaved={onProfileNameSaved}
       />
-      <section className="app-card p-5">
-        <div className="flex items-start gap-4">
+      <section className="app-card p-2.5 sm:p-3">
+        <div className="flex items-start gap-3">
           <ProfileAvatar large />
-          <div className="min-w-0 flex-1 pt-1">
-            <div className="flex items-start justify-between gap-3">
-              <div className="min-w-0">
-                <h2 className="truncate text-[25px] leading-none">{profileName}</h2>
-                <p className="mt-2 text-[14px] font-normal text-[#454b52]">炭酸とお茶が好き</p>
-              </div>
-              <button type="button" onClick={() => setProfileEditorOpen(true)} title="プロフィールを編集" className="tap-target shrink-0 rounded-full border border-[var(--accent)] px-3 text-[12px] text-[var(--accent)]">
-                <span className="inline-flex items-center gap-1"><Pencil className="h-3.5 w-3.5" strokeWidth={1.9} />プロフィール編集</span>
-              </button>
+          <div className="relative min-w-0 flex-1 pt-0.5">
+            <button type="button" onClick={() => setProfileEditorOpen(true)} title="プロフィールを編集" className="tap-target absolute right-0 top-0 rounded-full border border-[var(--accent)] px-2 text-[10px] text-[var(--accent)]">
+              <span className="inline-flex items-center gap-1 whitespace-nowrap"><Pencil className="h-3 w-3" strokeWidth={1.9} />プロフィール編集</span>
+            </button>
+            <div className="min-w-0 pr-[112px]">
+              <h2 className="truncate text-[20px] leading-[1.15]">{profileName}</h2>
+              <p className="mt-1 text-[11px] font-normal leading-[1.35] text-[#454b52]">炭酸とお茶が好き</p>
             </div>
-            <p className="mt-3 inline-flex items-center gap-1.5 text-[12px] font-normal text-[var(--muted)]">
-              <CalendarDays className="h-3.5 w-3.5" strokeWidth={1.7} /> 登録日 {joinedLabel}
+            <p className="mt-2 inline-flex items-center gap-1.5 whitespace-nowrap text-[10px] font-normal text-[var(--muted)]">
+              <CalendarDays className="h-3 w-3" strokeWidth={1.7} /> 登録日 {joinedLabel}
             </p>
           </div>
         </div>
-        <div className="mt-4 grid grid-cols-3 border-t border-[var(--border)] pt-3">
+        <div className="mt-2 grid min-h-8 grid-cols-3 border-t border-[var(--border)] pt-1.5">
           <ProfileMetric icon={MessageSquareMore} label="レビュー" value={myReviews.length} />
           <ProfileMetric icon={Heart} label="お気に入り" value={0} bordered />
           <ProfileMetric icon={Bookmark} label="保存" value={0} bordered />
@@ -442,10 +440,12 @@ function ProfileEditDialog({
  * の代替アイコンを使い、後から画像対応を追加してもカードの寸法を変えない。
  */
 function ProfileAvatar({ large = false }: { large?: boolean }) {
-  const size = large ? "h-[104px] w-[104px]" : "h-[104px] w-[104px]";
+  // ログイン後はプロフィール情報を横に並べるため60pxへ縮め、未ログイン案内では視線を集める104pxを保つ。
+  // 同じ部品を使い回すことで、アイコンの代替表示が画面ごとに別実装へ分岐しないようにする。
+  const size = large ? "h-[60px] w-[60px]" : "h-[104px] w-[104px]";
   return (
     <span className={`grid shrink-0 place-items-center overflow-hidden rounded-full bg-[var(--accent-soft)] text-[var(--accent)] ${size}`}>
-      <UserRound className={large ? "h-14 w-14" : "h-14 w-14"} strokeWidth={1.35} />
+      <UserRound className={large ? "h-8 w-8" : "h-14 w-14"} strokeWidth={1.35} />
     </span>
   );
 }
@@ -457,11 +457,11 @@ function ProfileAvatar({ large = false }: { large?: boolean }) {
  */
 function ProfileMetric({ icon: Icon, label, value, bordered = false }: { icon: typeof Heart; label: string; value: number; bordered?: boolean }) {
   return (
-    <div className={`flex items-center justify-center gap-2 px-1 ${bordered ? "border-l border-[var(--border)]" : ""}`}>
-      <Icon className="h-7 w-7 text-[var(--accent)]" strokeWidth={1.75} />
+    <div className={`flex min-w-0 items-center justify-center gap-1.5 px-1 ${bordered ? "border-l border-[var(--border)]" : ""}`}>
+      <Icon className="h-5 w-5 shrink-0 text-[var(--accent)]" strokeWidth={1.75} />
       <div>
-        <p className="text-[11px] font-normal text-[var(--muted)]">{label}</p>
-        <p className="mt-0.5 text-[19px] leading-none">{value}</p>
+        <p className="truncate text-[9px] font-normal text-[var(--muted)]">{label}</p>
+        <p className="mt-0.5 text-[15px] leading-none">{value}</p>
       </div>
     </div>
   );
