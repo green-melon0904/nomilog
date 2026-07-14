@@ -8,6 +8,7 @@
 import { randomUUID } from "node:crypto";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { NextRequest, NextResponse } from "next/server";
+import { isSameOriginRequest } from "@/lib/request-security";
 import { createWorkOSSupabaseClient } from "@/lib/supabase-server";
 import { hasWorkOSAuthConfig } from "@/lib/workos";
 import type { CarbonationLevel, PurchaseLocation, SceneTag } from "@/lib/types";
@@ -63,7 +64,7 @@ export async function POST(request: NextRequest) {
 
   // 投稿はブラウザからの同一オリジン操作だけを受け付ける。
   // AuthKitのCookieが万一クロスサイトで送られる設定になっても、他サイトからのCSRF投稿を防ぐ。
-  if (request.headers.get("origin") !== request.nextUrl.origin) {
+  if (!isSameOriginRequest(request)) {
     return NextResponse.json({ error: "不正なリクエストです。" }, { status: 403 });
   }
 
