@@ -1,50 +1,98 @@
 "use client";
 
-import { useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useMemo, useState } from "react";
-import Link from "next/link";
-import { LoginNotice } from "@/components/LoginNotice";
-import { RatingStars } from "@/components/RatingStars";
-import {
-  carbonationLabels,
-  products,
-  purchaseLocations,
-  saveReviewDraft,
-  sceneTags
-} from "@/lib/nomilog-data";
+/**
+ * 商品名の候補選択を含むレビュー投稿フォーム。
+ *
+ * 画面側では入力しやすさと早いエラー表示を担い、保存直前の最終検証と認証境界は
+ * サーバーAPIへ残す。投稿確認モーダルを必ず挟み、意図しない公開を防ぐ。
+ */
+
+import Image from "next/image";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useRef, useState } from "react";
+import { ArrowLeft, ImagePlus, Star } from "lucide-react";
+import { purchaseLocations, saveReviewDraft, sceneTags } from "@/lib/nomilog-data";
 import { canUseRemoteData, saveRemoteReviewDraft } from "@/lib/nomilog-remote";
-import type { CarbonationLevel, PurchaseLocation, SceneTag } from "@/lib/types";
+import { hasSupabaseEnv } from "@/lib/supabase";
+import { useNomilogProducts } from "@/components/useNomilogProducts";
+import type { CarbonationLevel, Product, PurchaseLocation, SceneTag } from "@/lib/types";
 
 const maxImageBytes = 2 * 1024 * 1024;
 const acceptedTypes = ["image/jpeg", "image/png", "image/webp"];
 
+/** 全角半角と空白だけを吸収し、候補照合時の表記ゆれを小さくする。 */
+function normalizeProductName(value: string) {
+  return value.normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase();
+}
+
+/** 表記ゆれだけを吸収し、商品名が完全一致した場合だけ既存商品へ紐づける。 */
+function findExactProduct(name: string, catalog: Product[]) {
+  const normalizedName = normalizeProductName(name);
+  if (!normalizedName) return undefined;
+
+  const matches = catalog.filter((item) => normalizeProductName(item.name) === normalizedName);
+  return matches.length === 1 ? matches[0] : undefined;
+}
+
+/**
+ * 入力途中の商品候補を最大5件へ絞る。
+ * 完全一致を先頭へ並べることで、既存商品を選ぶ操作を短くしつつ、候補の出し過ぎを防ぐ。
+ */
+function findProductCandidates(name: string, catalog: Product[]) {
+  const normalizedQuery = normalizeProductName(name);
+  if (!normalizedQuery) return [];
+
+  return catalog
+    .filter((item) => normalizeProductName(item.name).includes(normalizedQuery))
+    .sort((first, second) => {
+      const firstExact = normalizeProductName(first.name) === normalizedQuery ? 1 : 0;
+      const secondExact = normalizeProductName(second.name) === normalizedQuery ? 1 : 0;
+      return secondExact - firstExact;
+    })
+    .slice(0, 5);
+}
+
+/** 投稿フォームの入力状態、認証状態、確認モーダルを管理する。 */
 export function ReviewFormScreen() {
   const router = useRouter();
+  const pathname = usePathname();
   const params = useSearchParams();
+  const catalog = useNomilogProducts();
   const productId = params.get("productId");
-  const product = products.find((item) => item.id === productId);
+  const product = catalog.find((item) => item.id === productId);
+  const initialDrinkName = product?.name ?? "";
   const [rating, setRating] = useState(0);
+  const [drinkNameOverride, setDrinkNameOverride] = useState<string | null>(null);
   const [sweetness, setSweetness] = useState(3);
   const [carbonation, setCarbonation] = useState<CarbonationLevel>(2);
   const [costPerformance, setCostPerformance] = useState(3);
   const [scene, setScene] = useState<SceneTag[]>([]);
-  const [purchaseLocation, setPurchaseLocation] = useState<PurchaseLocation>("セブン");
+  const [purchaseLocation, setPurchaseLocation] = useState<PurchaseLocation | null>(null);
   const [comment, setComment] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>();
   const [imageError, setImageError] = useState("");
   const [formError, setFormError] = useState("");
+  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [submitConfirmationOpen, setSubmitConfirmationOpen] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
+  const remoteEnabled = hasSupabaseEnv();
+  const [authStatus, setAuthStatus] = useState<"loading" | "signed-in" | "signed-out" | "unavailable">(remoteEnabled ? "loading" : "signed-in");
+  const confirmationRef = useRef<HTMLDivElement>(null);
+  const cancelConfirmationRef = useRef<HTMLButtonElement>(null);
+  // 商品マスタの取得完了を待たずにフォームを描画するため、初期名とユーザー編集値を分離する。
+  // 後から商品が届いてもoverrideを優先し、入力中の飲み物名を上書きしない。
+  const drinkName = drinkNameOverride ?? initialDrinkName;
+  const matchedProduct = findExactProduct(drinkName, catalog);
+  const productCandidates = findProductCandidates(drinkName, catalog);
 
-  // 途中まで入力したレビューを失わないよう、ユーザーが意味のある入力を始めた状態を
-  // dirty として扱う。評価・コメント・シーン・画像のいずれかがあれば離脱確認の対象にする。
-  const dirty = useMemo(
-    () => rating > 0 || comment.length > 0 || scene.length > 0 || Boolean(imageDataUrl),
-    [comment.length, imageDataUrl, rating, scene.length]
-  );
+  // 初期値の味指標だけでは離脱確認を出さず、ユーザーが実際に変更した項目だけをdirtyとする。
+  // こうすることで、画面を開いて戻っただけの操作に不要な確認を挟まない。
+  const dirty = drinkName !== initialDrinkName || rating > 0 || comment.length > 0 || scene.length > 0 || Boolean(imageDataUrl);
 
   useEffect(() => {
-    // ブラウザの戻る・リロード・タブを閉じる操作では React Router の確認が効かないため、
-    // beforeunload でも未送信レビューの破棄確認を出せるようにしている。
+    // リロードやタブ閉じではAppShellの確認処理を通らないため、ブラウザ標準の離脱確認も有効にする。
     const onBeforeUnload = (event: BeforeUnloadEvent) => {
       if (!dirty || submitted) return;
       event.preventDefault();
@@ -54,41 +102,86 @@ export function ReviewFormScreen() {
   }, [dirty, submitted]);
 
   useEffect(() => {
-    // ボトムナビは AppShell 側にあるため、フォームの dirty 状態を sessionStorage で共有する。
-    // これにより投稿画面外のナビゲーションでも、入力内容を破棄する前に確認できる。
+    if (!remoteEnabled) return;
+    let active = true;
+    // WorkOSの暗号化Cookieはクライアントから読めないため、表示に必要なログイン状態だけをサーバーへ問い合わせる。
+    // セッションの実体やアクセストークンをブラウザ状態へ保存しないことが認証境界になる。
+    void fetch("/api/auth/session", { cache: "no-store" })
+      .then(async (response) => ({ response, data: await response.json() as { configured?: boolean; user?: unknown } }))
+      .then(({ data }) => {
+        if (!active) return;
+        setAuthStatus(data.configured ? (data.user ? "signed-in" : "signed-out") : "unavailable");
+      })
+      .catch(() => {
+        if (active) setAuthStatus("unavailable");
+      });
+    return () => {
+      active = false;
+    };
+  }, [remoteEnabled]);
+
+  useEffect(() => {
+    if (!submitConfirmationOpen) return;
+    const confirmation = confirmationRef.current;
+    const previouslyFocused = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const previousOverflow = document.body.style.overflow;
+
+    // モーダル中に背面のフォームが変更されると、確認文と保存内容がずれる可能性がある。
+    // スクロール・フォーカス・Escapeをここで管理し、確認が終わるまで操作対象をモーダルへ閉じ込める。
+    document.body.style.overflow = "hidden";
+    const focusFrame = window.requestAnimationFrame(() => cancelConfirmationRef.current?.focus());
+    const onKeyDown = (event: KeyboardEvent) => {
+      if (event.key === "Escape" && !isSubmitting) {
+        event.preventDefault();
+        setSubmitConfirmationOpen(false);
+        return;
+      }
+      if (event.key !== "Tab" || !confirmation) return;
+      const buttons = Array.from(confirmation.querySelectorAll<HTMLButtonElement>("button:not([disabled])"));
+      if (buttons.length === 0) return;
+      const first = buttons[0];
+      const last = buttons[buttons.length - 1];
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+
+    document.addEventListener("keydown", onKeyDown);
+    return () => {
+      window.cancelAnimationFrame(focusFrame);
+      document.removeEventListener("keydown", onKeyDown);
+      document.body.style.overflow = previousOverflow;
+      previouslyFocused?.focus();
+    };
+  }, [isSubmitting, submitConfirmationOpen]);
+
+  useEffect(() => {
+    // AppShellとは別ツリーで動くため、未保存フラグだけをsessionStorageで共有する。
     window.sessionStorage.setItem("nomilog.reviewFormDirty", dirty && !submitted ? "true" : "false");
     return () => window.sessionStorage.removeItem("nomilog.reviewFormDirty");
   }, [dirty, submitted]);
 
-  if (!product) {
-    // productId がない状態で投稿画面に来た場合は、誤って別商品のレビューにならないよう保存させない。
-    // MVPでは商品詳細から投稿開始する導線に寄せ、まず検索画面へ戻して商品を選ばせる。
-    return (
-      <div className="screen">
-        <div className="soft-card p-4">
-          <p className="text-[17px] font-semibold">商品を選んでください</p>
-          <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">
-            レビュー投稿は商品詳細から開始します。検索して、飲んだ商品を選んでください。
-          </p>
-          <Link
-            href="/search"
-            className="tap-target mt-3 inline-flex items-center rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-semibold text-white"
-          >
-            商品を検索する
-          </Link>
-        </div>
-      </div>
-    );
+  function toggleScene(next: SceneTag) {
+    // シーンは複数選択なので、再タップで解除できるトグルとして扱う。
+    // 配列のまま保持し、Supabaseのtext[]と同じ形で投稿APIへ渡す。
+    setScene((current) => current.includes(next) ? current.filter((item) => item !== next) : [...current, next]);
   }
 
-  const selectedProduct = product;
+  function goBack() {
+    if (dirty && !window.confirm("入力中のレビューを破棄して戻りますか？")) return;
+    router.back();
+  }
 
-  function toggleScene(next: SceneTag) {
-    // シーンは複数選択なので、押すたびに追加・削除を切り替える。
-    // DB 側でも text[] として保存するため、ここでも配列のまま状態を持つ。
-    setScene((current) =>
-      current.includes(next) ? current.filter((item) => item !== next) : [...current, next]
-    );
+  function startSignIn() {
+    // 商品詳細から来たproductIdも含めて投稿画面へ戻す。ただし入口側で安全なアプリ内パスへ
+    // 正規化するため、ここで任意の外部URLをreturnToとして成立させることはできない。
+    const query = params.toString();
+    const returnTo = `${pathname}${query ? `?${query}` : ""}`;
+    window.location.assign(`/sign-in?next=${encodeURIComponent(returnTo)}`);
   }
 
   async function onImageChange(file?: File) {
@@ -96,253 +189,319 @@ export function ReviewFormScreen() {
     setImageDataUrl(undefined);
     if (!file) return;
 
-    // iPhoneではHEIC画像が選ばれやすいが、MVPではサーバー側変換を持たない。
-    // 対応形式だけを明示的に許可して、投稿時ではなく選択直後に分かるようにする。
+    // iPhoneで選ばれやすいHEICはMVPの変換対象外なので、対応形式と容量を選択直後に検証する。
     if (!acceptedTypes.includes(file.type)) {
       setImageError("JPEG / PNG / WebP のみ対応しています。HEICはMVPでは非対応です。");
       return;
     }
-
     if (file.size > maxImageBytes) {
       setImageError("画像サイズは2MB以内にしてください。");
       return;
     }
 
-    // ローカルモードでは画像をlocalStorageへ保存するため、プレビューと保存の両方に使える
-    // Data URLへ変換する。Supabase接続時は送信時にBlobへ戻してStorageへアップロードする。
+    // ローカルデモでは画像をlocalStorageへ保存するため、プレビューと保存に共用できるData URLへ変換する。
     const reader = new FileReader();
     reader.onload = () => setImageDataUrl(String(reader.result));
     reader.onerror = () => setImageError("画像の読み込みに失敗しました。もう一度選択してください。");
     reader.readAsDataURL(file);
   }
 
-  async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
+  function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    requestSubmitConfirmation();
+  }
+
+  function requestSubmitConfirmation() {
     setFormError("");
-    // DB制約と同じ必須条件を画面側でも先に確認し、送信後に失敗する体験を減らす。
-    // 評価・おすすめシーン・コメントはレビューとして成立する最低限の情報として扱う。
-    if (rating < 1) {
-      setFormError("総合評価を選択してください。");
-      return;
-    }
-    if (scene.length < 1) {
-      setFormError("おすすめシーンを1つ以上選択してください。");
-      return;
-    }
-    if (comment.trim().length < 1) {
-      setFormError("コメントを入力してください。");
+    // DB制約と同じ必須条件を送信前に検証し、どの入力が不足しているかをフォーム下部へ表示する。
+    if (!drinkName.trim()) return setFormError("飲み物名を入力してください。");
+    if (rating < 1) return setFormError("総合評価を選択してください。");
+    if (scene.length < 1) return setFormError("シーンを1つ以上選択してください。");
+    if (!purchaseLocation) return setFormError("購入場所を選択してください。");
+    if (comment.trim().length < 1) return setFormError("コメントを入力してください。");
+
+    // 必須項目を通過した内容だけ確認モーダルへ進め、意図しない投稿を防ぐ。
+    setSubmitError("");
+    setSubmitConfirmationOpen(true);
+  }
+
+  async function confirmAndSubmit() {
+    // 確定ボタンを連打しても同じレビューを複数保存しないよう、保存完了まで一度だけ処理を通す。
+    if (isSubmitting) return;
+    // 確認ダイアログを開いた後でも状態は変わり得るため、保存直前にも必須の購入場所を確定する。
+    // これにより画面上の未選択状態を許容しつつ、保存データにはnullを混ぜない。
+    if (!purchaseLocation) {
+      setFormError("購入場所を選択してください。");
+      setSubmitError("購入場所を選択してください。");
       return;
     }
 
+    setIsSubmitting(true);
+    setSubmitError("");
+    // 全角・半角や空白を正規化して既存商品と完全一致させる。
+    // 投稿元に関係なく、一意に一致した商品へ紐づけ、候補がない場合は未登録飲料として保存する。
+    const resolvedProductId = findExactProduct(drinkName, catalog)?.id;
+    const draft = {
+      productId: resolvedProductId,
+      productName: drinkName.trim(),
+      rating,
+      sweetness,
+      carbonation,
+      scene,
+      costPerformance,
+      purchaseLocation,
+      comment: comment.trim(),
+      imageDataUrl
+    };
+
     try {
-      const draft = {
-        productId: selectedProduct.id,
-        rating,
-        sweetness,
-        carbonation,
-        scene,
-        costPerformance,
-        purchaseLocation,
-        comment: comment.trim(),
-        imageDataUrl
-      };
-      // 環境変数がある場合はSupabaseへ保存し、未設定の開発環境ではlocalStorageへ保存する。
-      // 同じフォームで本番想定とローカルデモの両方を動かせるよう、保存先だけをここで分岐する。
-      if (canUseRemoteData()) {
-        await saveRemoteReviewDraft(draft);
-      } else {
-        saveReviewDraft(draft);
-      }
+      // 環境変数がある場合はSupabaseへ保存し、未設定の開発環境では同じ形をlocalStorageへ保存する。
+      if (canUseRemoteData()) await saveRemoteReviewDraft(draft);
+      else saveReviewDraft(draft);
+
       setSubmitted(true);
       window.sessionStorage.removeItem("nomilog.reviewFormDirty");
-      router.push(`/products/${selectedProduct.id}`);
+      router.push(resolvedProductId ? `/products/${resolvedProductId}` : "/reviews");
     } catch (error) {
-      setFormError(error instanceof Error ? error.message : "レビューの保存に失敗しました。");
+      // 保存に失敗した場合は確認モーダルを閉じず、入力を保ったまま再試行またはキャンセルを選べるようにする。
+      const message = error instanceof Error ? error.message : "レビューの保存に失敗しました。";
+      setFormError(message);
+      setSubmitError(message);
+      setIsSubmitting(false);
     }
   }
 
-  const disabled = rating < 1 || !comment.trim() || scene.length === 0;
-
   return (
-    <div className="screen">
-      <LoginNotice compact />
+    <div className="screen review-form-screen pb-[calc(28px+env(safe-area-inset-bottom))]">
+      <header className="sticky top-0 z-20 -mx-5 grid h-[68px] grid-cols-[56px_1fr_56px] items-center border-b border-[var(--border)] bg-white/95 px-2 backdrop-blur-md">
+        <button type="button" onClick={goBack} aria-label="前の画面へ戻る" className="tap-target grid place-items-center">
+          <ArrowLeft className="h-7 w-7" strokeWidth={1.7} />
+        </button>
+        <h1 className="text-center text-[18px] leading-none">レビューを投稿</h1>
+        {/* プレビューを置かない代わりに余白を確保し、タイトルだけは画面の中央に揃える。 */}
+        <span aria-hidden="true" />
+      </header>
 
-      <div className="app-card my-4 grid grid-cols-[72px_1fr] gap-3 overflow-hidden p-2">
-        <div className="relative h-[84px] overflow-hidden rounded-[8px] bg-[var(--surface-soft)]">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={selectedProduct.imageUrl} alt={selectedProduct.name} className="h-full w-full object-contain" />
-        </div>
-        <div className="py-1">
-          <p className="text-[12px] font-bold text-[var(--muted)]">商品</p>
-          <p className="mt-1 text-[17px] font-semibold leading-snug">{selectedProduct.name}</p>
-          <p className="mt-1 text-[12px] font-bold text-[var(--muted)]">{selectedProduct.maker}</p>
-        </div>
-      </div>
+      {remoteEnabled && authStatus === "loading" ? (
+        <div className="py-8 text-center text-[13px] text-[var(--muted)]">ログイン状態を確認しています。</div>
+      ) : remoteEnabled && authStatus === "unavailable" ? (
+        <section className="border-b border-[var(--border)] py-8 text-center">
+          <p className="text-[15px]">ログイン機能を準備中です</p>
+          <p className="mt-2 text-[12px] font-normal text-[var(--muted)]">WorkOSの設定が完了すると、メール認証で投稿できます。</p>
+        </section>
+      ) : remoteEnabled && authStatus === "signed-out" ? (
+        <section className="border-b border-[var(--border)] py-8 text-center">
+          <p className="text-[15px]">レビュー投稿にはログインが必要です</p>
+          <p className="mt-2 text-[12px] font-normal text-[var(--muted)]">メールへ届く6桁コードで、安全にログインできます。</p>
+          <button type="button" onClick={startSignIn} className="tap-target mt-4 inline-flex items-center rounded-[8px] bg-[var(--accent)] px-4 text-[13px] !text-white">
+            ログインして投稿する
+          </button>
+        </section>
+      ) : (
+        <form onSubmit={onSubmit} className="pt-5">
+          <Field label="飲み物名" headingId="review-drink-name-label">
+            <input
+              id="review-drink-name"
+              type="text"
+              value={drinkName}
+              role="combobox"
+              onChange={(event) => {
+                const nextName = event.target.value.slice(0, 80);
+                setDrinkNameOverride(nextName);
+                setShowProductSuggestions(Boolean(nextName.trim()));
+              }}
+              onKeyDown={(event) => {
+                if (event.key === "Escape") setShowProductSuggestions(false);
+              }}
+              placeholder="飲んだドリンク名を入力"
+              aria-labelledby="review-drink-name-label"
+              aria-autocomplete="list"
+              aria-haspopup="listbox"
+              aria-controls="drink-name-suggestions"
+              aria-expanded={showProductSuggestions && productCandidates.length > 0}
+              className="tap-target w-full rounded-[10px] border border-[#d9dde2] px-4 text-[16px] font-normal outline-none placeholder:text-[#a9adb3] focus:border-[var(--accent)]"
+            />
+            {showProductSuggestions && productCandidates.length > 0 ? (
+              <div id="drink-name-suggestions" role="listbox" aria-label="商品候補" className="mt-2 overflow-hidden rounded-[10px] border border-[#d9dde2] bg-white shadow-[0_8px_20px_rgba(23,31,40,0.08)]">
+                <p className="border-b border-[#eef0f2] px-3 py-2 text-[12px] text-[var(--muted)]">商品候補</p>
+                <div className="divide-y divide-[#eef0f2]">
+                  {productCandidates.map((item) => (
+                    <button
+                      key={item.id}
+                      type="button"
+                      role="option"
+                      aria-selected={matchedProduct?.id === item.id}
+                      onClick={() => {
+                        setDrinkNameOverride(item.name);
+                        setShowProductSuggestions(false);
+                      }}
+                      className="tap-target flex min-h-[56px] w-full items-center justify-between gap-3 px-3 text-left hover:bg-[#f5faff]"
+                    >
+                      <span className="flex min-w-0 items-center gap-3">
+                        <Image src={item.imageUrl} alt="" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" />
+                        <span className="min-w-0">
+                          <span className="block truncate text-[14px]">{item.name}</span>
+                          <span className="mt-0.5 block truncate text-[12px] text-[var(--muted)]">{item.maker}</span>
+                        </span>
+                      </span>
+                      <span className="shrink-0 text-[12px] text-[var(--accent)]">選択</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+          </Field>
 
-      <form onSubmit={onSubmit} className="space-y-4">
-        <Field label="総合評価">
-          <div className="flex items-center gap-3">
-            <div className="flex gap-1">
-              {Array.from({ length: 5 }).map((_, index) => (
-                <button
-                  key={index}
-                  type="button"
-                  onClick={() => setRating(index + 1)}
-                  className="tap-target w-10 rounded-[8px] text-[28px] leading-none text-[var(--amber)] transition hover:bg-[var(--accent-soft)]"
-                  aria-label={`${index + 1}点`}
-                >
-                  {index < rating ? "★" : "☆"}
-                </button>
+          <section className="mt-6 border-b border-[var(--border)] pb-4">
+            <div className="grid grid-cols-[96px_1fr_38px] items-center gap-2">
+              <h2 className="text-[17px]">総合評価</h2>
+              <div className="flex justify-between">
+                {Array.from({ length: 5 }).map((_, index) => {
+                  const score = index + 1;
+                  return (
+                    <button
+                      key={score}
+                      type="button"
+                      onClick={() => setRating(score)}
+                      className="tap-target grid w-10 place-items-center"
+                      aria-label={`${score}点`}
+                      aria-pressed={score === rating}
+                    >
+                      <Star
+                        className={score <= rating ? "h-9 w-9 fill-[var(--accent)] text-[var(--accent)]" : "h-9 w-9 fill-white text-[#aeb3ba]"}
+                        strokeWidth={1.5}
+                      />
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="text-right text-[17px]">{rating > 0 ? `${rating}.0` : "-"}</span>
+            </div>
+          </section>
+
+          <div className="space-y-2 py-4">
+            <MetricRow label="甘さ" value={sweetness} onChange={setSweetness} startLabel="控えめ" endLabel="甘い" />
+            <MetricRow label="炭酸" value={carbonation + 1} onChange={(value) => setCarbonation((value - 1) as CarbonationLevel)} startLabel="弱い" endLabel="強い" />
+            <MetricRow label="コスパ" value={costPerformance} onChange={setCostPerformance} startLabel="悪い" endLabel="良い" />
+          </div>
+
+          <Field label="シーン" className="pt-4">
+            <div className="grid grid-cols-3 gap-3">
+              {sceneTags.map((item) => (
+                <ChoiceButton key={item} active={scene.includes(item)} onClick={() => toggleScene(item)}>{item}</ChoiceButton>
               ))}
             </div>
-            {rating > 0 ? <RatingStars value={rating} /> : null}
-          </div>
-        </Field>
+          </Field>
 
-        <Field label="甘さ">
-          <NumberButtons value={sweetness} onChange={setSweetness} />
-        </Field>
+          <Field label="購入場所" className="pt-7">
+            <div className="purchase-location-grid grid gap-3">
+              {purchaseLocations.map((item) => (
+                <ChoiceButton key={item} active={purchaseLocation === item} onClick={() => setPurchaseLocation(item)}>
+                  {item}
+                </ChoiceButton>
+              ))}
+            </div>
+          </Field>
 
-        <Field label="炭酸の強さ">
-          <ChoiceGrid
-            values={Object.entries(carbonationLabels)}
-            active={String(carbonation)}
-            onChange={(value) => setCarbonation(Number(value) as CarbonationLevel)}
-          />
-        </Field>
+          <Field label="コメント" headingId="review-comment-label" className="pt-7">
+            <div className="relative">
+              <textarea
+                value={comment}
+                onChange={(event) => setComment(event.target.value.slice(0, 300))}
+                rows={3}
+                placeholder="感想を自由に書いてみましょう！"
+                aria-labelledby="review-comment-label"
+                className="min-h-[116px] w-full resize-none rounded-[10px] border border-[#d9dde2] p-4 pb-8 text-[16px] font-normal leading-relaxed outline-none placeholder:text-[#a9adb3] focus:border-[var(--accent)]"
+              />
+              <span className="absolute bottom-3 right-3 text-[12px] text-[var(--muted)]">{comment.length}/300</span>
+            </div>
+          </Field>
 
-        <Field label="コスパ">
-          <NumberButtons value={costPerformance} onChange={setCostPerformance} />
-        </Field>
+          <Field label="写真を追加（任意）" className="pt-6">
+            <label className="tap-target flex min-h-[80px] cursor-pointer items-center justify-center gap-2 rounded-[12px] border border-dashed border-[#b9bec5] text-[16px] text-[var(--accent)]">
+              <ImagePlus className="h-6 w-6" strokeWidth={1.7} /> 写真を選ぶ
+              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => onImageChange(event.target.files?.[0])} />
+            </label>
+            {imageError ? <p className="mt-2 text-[12px] text-[var(--danger)]">{imageError}</p> : null}
+            {imageDataUrl ? (
+              // 選択したローカル画像はNext Imageの最適化対象にせず、そのままプレビューする。
+              // eslint-disable-next-line @next/next/no-img-element
+              <img src={imageDataUrl} alt="写真プレビュー" className="mt-3 h-40 w-full rounded-[10px] object-cover" />
+            ) : null}
+          </Field>
 
-        <Field label="おすすめシーン">
-          <div className="flex flex-wrap gap-2">
-            {sceneTags.map((item) => (
-              <button
-                type="button"
-                key={item}
-                onClick={() => toggleScene(item)}
-                className={`tap-target rounded-[8px] border px-4 text-[14px] font-semibold ${
-                  scene.includes(item)
-                    ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm"
-                    : "border-[var(--border)] bg-white text-[var(--text)]"
-                }`}
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-        </Field>
-
-        <Field label="購入場所">
-          <ChoiceGrid
-            values={purchaseLocations.map((item) => [item, item])}
-            active={purchaseLocation}
-            onChange={(value) => setPurchaseLocation(value as PurchaseLocation)}
-          />
-        </Field>
-
-        <Field label="コメント">
-          <textarea
-            value={comment}
-            onChange={(event) => setComment(event.target.value.slice(0, 300))}
-            rows={4}
-            placeholder="味・買った場所・飲みたいシーンをメモ"
-            aria-invalid={!comment.trim()}
-            className="w-full resize-none rounded-[8px] border border-[var(--border)] bg-white p-3 text-[16px] font-semibold leading-relaxed outline-none transition focus:border-[var(--accent)] focus:shadow-[0_0_0_3px_var(--accent-soft)]"
-          />
-          <p className="mt-1 text-right text-[12px] font-bold text-[var(--muted)]">{comment.length}/300</p>
-        </Field>
-
-        <Field label="写真（任意）">
-          <label className="tap-target flex cursor-pointer items-center justify-center rounded-[8px] border border-dashed border-[var(--accent)] bg-[var(--accent-soft)] px-4 text-[14px] font-semibold text-[var(--accent-strong)]">
-            写真を追加
-            <input
-              type="file"
-              accept="image/jpeg,image/png,image/webp"
-              className="sr-only"
-              onChange={(event) => onImageChange(event.target.files?.[0])}
-            />
-          </label>
-          {imageError ? <p className="mt-2 text-[13px] font-bold text-[var(--cola)]">{imageError}</p> : null}
-          {imageDataUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={imageDataUrl} alt="写真プレビュー" className="mt-3 h-40 w-full rounded-[8px] object-cover" />
-          ) : null}
-        </Field>
-
-        <div className="sticky bottom-[calc(86px+env(safe-area-inset-bottom))] z-10 space-y-2">
-          {formError ? (
-            <p id="review-form-error" role="alert" className="rounded-[8px] border border-[#f2c7c7] bg-[#fff5f5] p-3 text-[13px] font-bold text-[var(--cola)]">
-              {formError}
-            </p>
-          ) : null}
-          <button
-            aria-describedby={formError ? "review-form-error" : undefined}
-            className="tap-target w-full rounded-[8px] bg-[var(--accent)] px-4 text-[16px] font-semibold text-white shadow-[0_12px_24px_rgba(42,155,225,0.22)] disabled:bg-[#b9d9ef]"
-          >
-            {disabled ? "未入力項目があります" : "投稿する"}
+          {formError ? <p id="review-form-error" role="alert" className="mt-4 rounded-[8px] bg-[#fff3f3] p-3 text-[12px] text-[var(--danger)]">{formError}</p> : null}
+          <button type="button" onClick={requestSubmitConfirmation} aria-describedby={formError ? "review-form-error" : undefined} className="tap-target mt-7 min-h-[54px] w-full rounded-[12px] bg-[var(--accent)] px-4 text-[18px] !text-white shadow-[0_6px_14px_rgba(42,155,225,0.18)]">
+            投稿する
           </button>
+        </form>
+        )}
+      {submitConfirmationOpen ? (
+        <div ref={confirmationRef} className="fixed inset-0 z-50 grid place-items-end bg-black/30" role="dialog" aria-modal="true" aria-busy={isSubmitting} aria-labelledby="submit-confirmation-title" aria-describedby="submit-confirmation-description">
+          <section className="mx-auto w-full max-w-[460px] rounded-t-[8px] bg-white px-[18px] pt-6 pb-[calc(18px+env(safe-area-inset-bottom))]">
+            <div className="mx-auto max-w-[424px]">
+              <h2 id="submit-confirmation-title" className="text-center text-[17px]">レビューを投稿しますか？</h2>
+              <p id="submit-confirmation-description" className="mt-2 text-center text-[13px] font-normal leading-relaxed text-[var(--muted)]">
+                {matchedProduct ? `「${matchedProduct.name}」のレビューとして投稿します。投稿するとレビューが公開されます。` : "投稿するとレビューが公開されます。"}
+              </p>
+              {submitError ? <p role="alert" className="mt-3 rounded-[8px] bg-[#fff3f3] p-3 text-[12px] text-[var(--danger)]">{submitError}</p> : null}
+              <div className="mt-5 grid grid-cols-2 gap-3">
+                <button ref={cancelConfirmationRef} type="button" disabled={isSubmitting} onClick={() => setSubmitConfirmationOpen(false)} className="tap-target rounded-[8px] border border-[var(--border)] text-[14px] text-[#3d4147] disabled:cursor-not-allowed disabled:opacity-50">
+                  キャンセル
+                </button>
+                <button type="button" disabled={isSubmitting} onClick={confirmAndSubmit} className="tap-target rounded-[8px] bg-[var(--accent)] text-[14px] !text-white disabled:cursor-wait disabled:opacity-60">
+                  {isSubmitting ? "投稿中..." : "投稿する"}
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
-      </form>
+      ) : null}
     </div>
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children, className = "", headingId }: { label: string; children: React.ReactNode; className?: string; headingId?: string }) {
   return (
-    <section className="app-card p-4">
-      <h2 className="mb-3 text-[16px] font-semibold">{label}</h2>
+    <section className={className}>
+      <h2 id={headingId} className="mb-3 text-[17px]">{label}</h2>
       {children}
     </section>
   );
 }
 
-function NumberButtons({ value, onChange }: { value: number; onChange: (value: number) => void }) {
+function MetricRow({ label, value, onChange, startLabel, endLabel }: { label: string; value: number; onChange: (value: number) => void; startLabel: string; endLabel: string }) {
   return (
-    <div className="grid grid-cols-5 gap-2">
-      {Array.from({ length: 5 }).map((_, index) => {
-        const next = index + 1;
-        return (
-          <button
-            type="button"
-            key={next}
-            onClick={() => onChange(next)}
-            className={`tap-target rounded-[8px] border text-[15px] font-semibold ${
-              value === next ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm" : "border-[var(--border)] bg-white text-[var(--text)]"
-            }`}
-          >
-            {next}
-          </button>
-        );
-      })}
+    <div className="grid grid-cols-[62px_1fr] items-center gap-3">
+      <p className="text-[17px]">{label}</p>
+      <AttributeScale label={label} value={value} onChange={onChange} startLabel={startLabel} endLabel={endLabel} />
     </div>
   );
 }
 
-function ChoiceGrid({
-  values,
-  active,
-  onChange
-}: {
-  values: string[][];
-  active: string;
-  onChange: (value: string) => void;
-}) {
+function AttributeScale({ label, value, onChange, startLabel, endLabel }: { label: string; value: number; onChange: (value: number) => void; startLabel: string; endLabel: string }) {
   return (
-    <div className="flex flex-wrap gap-2">
-      {values.map(([value, label]) => (
-        <button
-          type="button"
-          key={value}
-          onClick={() => onChange(value)}
-          className={`tap-target rounded-[8px] border px-4 text-[14px] font-semibold ${
-            active === value ? "border-[var(--accent)] bg-[var(--accent)] text-white shadow-sm" : "border-[var(--border)] bg-white text-[var(--text)]"
-          }`}
-        >
-          {label}
-        </button>
-      ))}
+    <div className="grid grid-cols-[46px_1fr_34px] items-center gap-2">
+      <span className="text-[12px] text-[var(--muted)]">{startLabel}</span>
+      <div className="grid grid-cols-5">
+        {Array.from({ length: 5 }).map((_, index) => {
+          const score = index + 1;
+          return (
+            <button key={score} type="button" onClick={() => onChange(score)} aria-label={`${label} ${score}段階`} aria-pressed={score === value} className="tap-target grid place-items-center">
+              <span className={`h-[22px] w-[22px] rounded-full border ${score === value ? "border-[var(--accent)] bg-[var(--accent)] shadow-[0_1px_2px_rgba(42,155,225,0.24)]" : "border-[#b9bec5] bg-white"}`} />
+            </button>
+          );
+        })}
+      </div>
+      <span className="text-right text-[12px] text-[var(--muted)]">{endLabel}</span>
     </div>
+  );
+}
+
+function ChoiceButton({ active, onClick, children }: { active: boolean; onClick: () => void; children: React.ReactNode }) {
+  return (
+    <button type="button" onClick={onClick} aria-pressed={active} className={`tap-target whitespace-nowrap rounded-[10px] border px-1 text-[12px] leading-tight ${active ? "border-[var(--accent)] bg-[var(--accent)] !text-white shadow-sm" : "border-[#8abfff] bg-white text-[var(--accent)]"}`}>
+      {children}
+    </button>
   );
 }

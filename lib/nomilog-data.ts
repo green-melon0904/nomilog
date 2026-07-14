@@ -1,3 +1,10 @@
+/**
+ * のみログのローカルデータ層。
+ *
+ * seed・localStorage・Supabase由来のレビューを同じReview型へ揃え、画面がどの保存先を
+ * 使っているかを意識せずに集計・検索できるようにする。ブラウザ専用処理は関数内で
+ * windowの有無を確認し、Server Componentから誤って呼ばれてもクラッシュさせない。
+ */
 import type {
   CarbonationLevel,
   Category,
@@ -20,15 +27,24 @@ export const carbonationLabels: Record<CarbonationLevel, string> = {
 };
 
 export const purchaseLocations: PurchaseLocation[] = [
-  "セブン",
+  "セブン-イレブン",
   "ローソン",
   "ファミマ",
-  "自販機",
   "スーパー",
+  "ドラッグストア",
+  "自販機",
+  "Amazon",
   "その他"
 ];
 
-export const sceneTags: SceneTag[] = ["朝", "運動後", "昼食", "夜", "暑い日"];
+export const sceneTags: SceneTag[] = [
+  "リフレッシュ",
+  "風呂あがり",
+  "仕事・勉強中",
+  "食事と一緒に",
+  "リラックス",
+  "スポーツの後"
+];
 
 export const categories: Category[] = [
   { id: "11111111-1111-4111-8111-111111111111", name: "炭酸", slug: "soda" },
@@ -45,6 +61,8 @@ export const demoUser = {
   avatarUrl: "飲"
 };
 
+// 商品を選ばずに投稿を始めるMVP導線では、この代表商品へレビューを紐づける。
+// 配列の並び順に依存するとseed商品の追加・並び替えで投稿先が変わるため、固定IDで参照する。
 export const products: Product[] = [
   {
     id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
@@ -107,7 +125,7 @@ export const seedReviews: Review[] = [
     carbonation: 4,
     scene: ["昼食", "暑い日"],
     costPerformance: 4,
-    purchaseLocation: "セブン",
+    purchaseLocation: "セブン-イレブン",
     comment: "香りがしっかりあって、ゼロ系にありがちな後味の軽さが少ない。",
     createdAt: "2026-06-24T12:20:00.000Z"
   },
@@ -177,7 +195,7 @@ export const seedReviews: Review[] = [
     carbonation: 3,
     scene: ["夜"],
     costPerformance: 3,
-    purchaseLocation: "セブン",
+    purchaseLocation: "セブン-イレブン",
     comment: "甘さは強い。パンチはあるけど飲み切るには気合いがいる。",
     createdAt: "2026-06-20T23:10:00.000Z"
   },
@@ -199,11 +217,14 @@ export const seedReviews: Review[] = [
 
 const reviewsKey = "nomilog.reviews.v1";
 const requestsKey = "nomilog.productRequests.v1";
+type StoredReview = Omit<Review, "purchaseLocation"> & { purchaseLocation?: string };
 
+/** カテゴリIDを画面表示用の日本語名へ変換し、未知のIDは「その他」へ退避する。 */
 export function getCategoryName(categoryId: string) {
   return categories.find((category) => category.id === categoryId)?.name ?? "その他";
 }
 
+/** ISO形式の日付を、レビューカードで使う月日表記へ変換する。 */
 export function formatDate(value: string) {
   return new Intl.DateTimeFormat("ja-JP", {
     month: "2-digit",
@@ -211,9 +232,13 @@ export function formatDate(value: string) {
   }).format(new Date(value));
 }
 
+/**
+ * 指定商品のレビューから、画面表示用の平均値を計算する。
+ *
+ * 集計元を引数の配列だけに限定することで、seed・localStorage・Supabaseのレビューが
+ * 混在しても同じ結果を得られる。レビューがない商品は0を返し、カード側の分岐を増やさない。
+ */
 export function calculateStats(productId: string, reviews: Review[]): ProductStats {
-  // 商品ごとの平均値は、表示中のレビュー配列を唯一の入力にして計算する。
-  // これによりseedレビュー、localStorageレビュー、Supabaseレビューを混ぜても同じロジックで扱える。
   const productReviews = reviews.filter((review) => review.productId === productId);
   if (productReviews.length === 0) {
     return {
@@ -237,19 +262,22 @@ export function calculateStats(productId: string, reviews: Review[]): ProductSta
   };
 }
 
-export function enrichProducts(reviews: Review[] = seedReviews): ProductWithStats[] {
-  // 商品一覧カードでは平均評価やレビュー数も必要になるため、商品マスタに集計値を付与して返す。
-  // 元のproducts配列は変更せず、画面ごとに最新レビューから派生データを作る。
-  return products.map((product) => ({
+/** 商品マスタを変更せず、現在のレビュー配列から表示用の集計値を合成する。 */
+export function enrichProducts(reviews: Review[] = seedReviews, catalog: Product[] = products): ProductWithStats[] {
+  return catalog.map((product) => ({
     ...product,
     ...calculateStats(product.id, reviews)
   }));
 }
 
-export function getRanking(reviews: Review[], limit = 5) {
-  // レビュー数だけだと古い商品が固定化され、平均評価だけだと少数レビューの商品が上がりやすい。
-  // そのため平均評価を主軸にしつつ、最大10件までのレビュー数を軽く加点してランキングを作る。
-  return enrichProducts(reviews)
+/**
+ * 平均評価とレビュー数を組み合わせてランキングを作る。
+ *
+ * 平均評価だけでは1件だけの高評価が上位に偏り、レビュー数だけでは古い商品が固定化する。
+ * そこで評価を70%、レビュー数による加点を最大1.5点までとして、少数レビューと人気の偏りを抑える。
+ */
+export function getRanking(reviews: Review[], limit = 5, catalog: Product[] = products) {
+  return enrichProducts(reviews, catalog)
     .filter((product) => product.reviewCount > 0)
     .sort((a, b) => {
       const weightedA = a.avgRating * 0.7 + Math.min(a.reviewCount, 10) * 0.15;
@@ -259,10 +287,14 @@ export function getRanking(reviews: Review[], limit = 5) {
     .slice(0, limit);
 }
 
-export function getSimilarProducts(productId: string, reviews: Review[], limit = 6) {
-  // MVPのレコメンドは説明可能性を優先し、甘さと炭酸の平均値だけで距離を計算する。
-  // 将来はカテゴリや購入場所も加味できるが、ここでは「似た味」の最小実装として保っている。
-  const all = enrichProducts(reviews);
+/**
+ * 甘さと炭酸の平均値を2次元座標として、指定商品に近い商品を返す。
+ *
+ * MVPではユーザーへ説明しやすい指標だけを使う。カテゴリや購入場所を増やすと推薦理由が
+ * 不透明になりやすいため、追加条件は推薦精度を検証してから導入する。
+ */
+export function getSimilarProducts(productId: string, reviews: Review[], limit = 6, catalog: Product[] = products) {
+  const all = enrichProducts(reviews, catalog);
   const base = all.find((product) => product.id === productId);
   if (!base) return [];
 
@@ -280,30 +312,57 @@ export function getSimilarProducts(productId: string, reviews: Review[], limit =
     .map((entry) => entry.product);
 }
 
+/**
+ * localStorageから投稿レビューを読み込む。
+ *
+ * ブラウザ拡張や手動編集で壊れた値が入る可能性があるため、読み込み失敗は空配列へ戻す。
+ * これは画面全体を壊すより、投稿や検索を継続できることを優先するためのフォールバック。
+ */
 export function readLocalReviews(): Review[] {
   if (typeof window === "undefined") return [];
   try {
     // localStorageは壊れたJSONが入る可能性があるため、読めない場合は空配列に戻す。
     // 画面全体を落とさず、投稿・検索の体験を続けられることを優先する。
-    return JSON.parse(window.localStorage.getItem(reviewsKey) ?? "[]") as Review[];
+    const stored = JSON.parse(window.localStorage.getItem(reviewsKey) ?? "[]") as StoredReview[];
+    let migrated = false;
+    const reviews: Review[] = stored.map((review) => {
+      // 旧UIで保存した「セブン」は新しい選択肢「セブン-イレブン」へ読み込み時に正規化する。
+      // 既存レビューを消さず、新しい検索・購入場所表示で同じ値として扱えるようにする移行処理。
+      const purchaseLocation = normalizePurchaseLocation(review.purchaseLocation);
+      if (purchaseLocation !== review.purchaseLocation) migrated = true;
+      return { ...review, purchaseLocation };
+    });
+    if (migrated) window.localStorage.setItem(reviewsKey, JSON.stringify(reviews));
+    return reviews;
   } catch {
     return [];
   }
 }
 
+function normalizePurchaseLocation(value: string | undefined): PurchaseLocation {
+  if (value === "セブン") return "セブン-イレブン";
+  return purchaseLocations.includes(value as PurchaseLocation) ? (value as PurchaseLocation) : "その他";
+}
+
+/** seedレビューと端末内レビューを、画面が扱う単一の配列へまとめる。 */
 export function readAllReviews(): Review[] {
   return [...seedReviews, ...readLocalReviews()];
 }
 
+/**
+ * Supabaseが未設定の開発環境向けに、投稿内容をlocalStorageへ保存する。
+ *
+ * 本番のReview型と同じ形へ変換してから保存することで、データソースを切り替えても
+ * 集計・一覧表示のコードを分岐させずに済む。画像付きレビューは容量超過を明示する。
+ */
 export function saveReviewDraft(draft: ReviewDraft): Review {
-  // Supabase未設定の開発環境でもレビュー投稿の一連の体験を確認できるよう、
-  // localStorageへ保存するレビューを本番DBのReview型に近い形で組み立てる。
   const now = new Date().toISOString();
   const review: Review = {
     id: `local-${crypto.randomUUID()}`,
     userId: demoUser.userId,
     userName: demoUser.name,
     productId: draft.productId,
+    productName: draft.productName,
     rating: draft.rating,
     sweetness: draft.sweetness,
     carbonation: draft.carbonation,
@@ -332,14 +391,14 @@ export function saveReviewDraft(draft: ReviewDraft): Review {
   return review;
 }
 
+/** 端末内レビューを削除し、同じタブの各画面へ再計算イベントを通知する。 */
 export function deleteLocalReview(reviewId: string) {
-  // マイページの削除はMVPではローカルレビューだけを対象にする。
-  // 削除後は投稿時と同じイベントを出し、商品詳細やランキングの集計を更新させる。
   const next = readLocalReviews().filter((review) => review.id !== reviewId);
   window.localStorage.setItem(reviewsKey, JSON.stringify(next));
   window.dispatchEvent(new Event("nomilog:reviews"));
 }
 
+/** 端末内に保存した商品リクエストを読み込み、壊れた値は空配列へ退避する。 */
 export function readProductRequests(): ProductRequest[] {
   if (typeof window === "undefined") return [];
   try {
@@ -350,9 +409,11 @@ export function readProductRequests(): ProductRequest[] {
   }
 }
 
+/**
+ * 検索で見つからない飲み物を、即時の商品追加ではなく運用確認用リクエストとして保存する。
+ * 商品マスタをユーザー入力で直接変更しないため、誤表記が検索結果へ混入するのを防げる。
+ */
 export function saveProductRequest(name: string) {
-  // MVPではユーザーが直接商品マスタを増やさず、リクエストとして残すだけにする。
-  // seed管理から運用管理画面へ移すときも、この形なら承認フローへつなげやすい。
   const request: ProductRequest = {
     id: `request-${crypto.randomUUID()}`,
     userId: demoUser.userId,

@@ -2,20 +2,20 @@
 @import "tailwindcss";
 
 :root {
-  /* アプリ全体で使う色をCSS変数に集約し、コンポーネント側は意味名で参照する。 */
+  /* 参考デザインの白い面と鮮やかな青を、全画面で同じ意味名から参照できるようにする。 */
   --background: #ffffff;
   --surface: #ffffff;
-  --surface-soft: #f3faff;
-  --surface-warm: #e9f6ff;
-  --text: #102033;
-  --muted: #697789;
-  --border: #dbe9f5;
+  --surface-soft: #f6f7f9;
+  --surface-blue: #eef7ff;
+  --text: #16191d;
+  --muted: #747980;
+  --border: #e5e7eb;
   --accent: #2a9be1;
-  --accent-strong: #116ca8;
-  --accent-soft: #e7f5ff;
-  --cola: #d84a4a;
-  --amber: #f4b740;
-  --shadow: 0 10px 30px rgba(42, 155, 225, 0.1);
+  --accent-strong: #147fc2;
+  --accent-soft: #eaf5fd;
+  --danger: #d74848;
+  --star: #ffad00;
+  --shadow: 0 1px 3px rgba(17, 24, 39, 0.08);
 }
 
 * {
@@ -34,6 +34,7 @@ body {
   margin: 0;
   min-height: 100dvh;
   background: var(--background);
+  -webkit-font-smoothing: antialiased;
 }
 
 button,
@@ -44,25 +45,41 @@ select {
 }
 
 button {
-  color: inherit;
+  cursor: pointer;
 }
 
 a {
-  color: inherit;
   text-decoration: none;
 }
 
 .mobile-shell {
-  /* 固定ボトムナビに本文が隠れないよう、ナビ高さとiOS safe-area分の余白を確保する。 */
+  /* 固定ボトムナビとiOSのホームインジケータに本文が隠れない高さを確保する。 */
   min-height: 100dvh;
-  padding-bottom: calc(88px + env(safe-area-inset-bottom));
+  background: var(--background);
+  padding-bottom: calc(74px + env(safe-area-inset-bottom));
 }
 
 .screen {
-  /* iPhone中心の画面幅にしつつ、デスクトップ確認時も読みやすい最大幅に抑える。 */
+  /* 参考画像のiPhone画面に近い情報密度を保ち、広い画面では中央に固定する。 */
   margin: 0 auto;
-  width: min(100%, 480px);
-  padding: 14px 16px 0;
+  width: min(100%, 460px);
+  padding: 0 18px;
+}
+
+.review-form-screen {
+  /* 投稿フォームだけは20pxの左右余白に揃え、ヘッダーを端から端まで自然に広げる。 */
+  padding-inline: 20px;
+}
+
+.purchase-location-grid {
+  /* 長い店名を1行に保ちつつ、参考画像と同じ4列2段のリズムを小さな画面でも崩さない。 */
+  grid-template-columns: minmax(0, 1.75fr) repeat(3, minmax(0, 1fr));
+}
+
+.purchase-location-grid > button {
+  /* 先頭列以外は狭いため、店舗名は12pxに固定して隣のボタンへ文字がはみ出さないようにする。 */
+  overflow: hidden;
+  font-size: 12px;
 }
 
 .safe-bottom {
@@ -78,9 +95,9 @@ a {
 }
 
 .soft-card {
-  border: 1px solid rgba(42, 155, 225, 0.18);
+  border: 1px solid var(--border);
   border-radius: 8px;
-  background: var(--surface-soft);
+  background: var(--surface);
 }
 
 .tap-target {
@@ -99,6 +116,13 @@ a {
 
 @media (min-width: 760px) {
   body {
-    background: #ffffff;
+    background: #f4f6f8;
+  }
+
+  .mobile-shell {
+    margin: 0 auto;
+    max-width: 460px;
+    border-inline: 1px solid var(--border);
+    box-shadow: 0 0 32px rgba(17, 24, 39, 0.08);
   }
 }

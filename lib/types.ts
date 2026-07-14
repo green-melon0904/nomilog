@@ -1,17 +1,41 @@
+/** 商品検索やカテゴリ表示で使う、DBと画面の両方で安定したカテゴリ識別子。 */
 export type CategorySlug = "soda" | "tea" | "coffee" | "alcohol" | "energy" | "other";
 
 export type PurchaseLocation =
-  | "セブン"
+  | "セブン-イレブン"
   | "ローソン"
   | "ファミマ"
-  | "自販機"
   | "スーパー"
+  | "ドラッグストア"
+  | "自販機"
+  | "Amazon"
   | "その他";
 
-export type SceneTag = "朝" | "運動後" | "昼食" | "夜" | "暑い日";
+/**
+ * レビューを飲む場面として選べるタグ。
+ *
+ * seedデータと投稿フォームで同じ型を共有し、Supabaseのtext[]へそのまま保存できるようにする。
+ * 新しい表示文言を追加する場合は、投稿APIとDBのCHECK制約も同時に確認する。
+ */
+export type SceneTag =
+  | "朝"
+  | "運動後"
+  | "昼食"
+  | "夜"
+  | "暑い日"
+  | "リフレッシュ"
+  | "風呂あがり"
+  | "仕事・勉強中"
+  | "食事と一緒に"
+  | "リラックス"
+  | "スポーツの後";
 
-// 炭酸だけは「なし」を表す0を持つため、他の5段階評価とは違って0〜4で扱う。
-// 表示文言への変換はnomilog-data.tsのcarbonationLabelsに集約する。
+/**
+ * 炭酸の強さを表す保存値。
+ *
+ * 「なし」を0で表すため、甘さやコスパの1〜5評価とは別の範囲を持つ。
+ * 画面に出す日本語はnomilog-data.tsのcarbonationLabelsで一元変換する。
+ */
 export type CarbonationLevel = 0 | 1 | 2 | 3 | 4;
 
 export type Profile = {
@@ -40,7 +64,9 @@ export type Review = {
   id: string;
   userId: string;
   userName: string;
-  productId: string;
+  /** 既存商品に紐づく場合だけ保持し、未登録飲料ではundefinedにする。 */
+  productId?: string;
+  productName?: string;
   rating: number;
   sweetness: number;
   carbonation: CarbonationLevel;
@@ -49,12 +75,16 @@ export type Review = {
   purchaseLocation: PurchaseLocation;
   comment: string;
   imageUrl?: string;
+  /**
+   * DB側のトリガーで集計されたいいね数。
+   * seedレビューにはDB行がないため未設定を許し、表示時は0件へフォールバックする。
+   */
+  likeCount?: number;
   createdAt: string;
   updatedAt?: string;
 };
 
-// 商品リクエストはMVPでは商品マスタを直接増やさないための受け皿。
-// statusを持たせておくことで、後から承認・却下の運用フローへ広げられる。
+/** 商品マスタへ即時登録せず、運用側の確認待ちとして受け付けるリクエスト。 */
 export type ProductRequest = {
   id: string;
   userId: string;
@@ -65,8 +95,12 @@ export type ProductRequest = {
   createdAt: string;
 };
 
-// Product本体はマスタ情報だけを持ち、レビュー由来の平均値はProductStatsとして分ける。
-// 画面ではProductWithStatsに合成して使い、集計の入力元をレビュー配列に限定する。
+/**
+ * レビューから導出する商品評価。
+ *
+ * Product本体へ直接書き込まず別型に分けることで、seed・localStorage・DBのレビューを
+ * 同じ計算経路へ通し、商品マスタの値と表示上の集計値が混ざるのを防ぐ。
+ */
 export type ProductStats = {
   avgRating: number;
   avgSweetness: number;
@@ -77,10 +111,16 @@ export type ProductStats = {
 
 export type ProductWithStats = Product & ProductStats;
 
-// フォーム入力中の値。保存先がlocalStorageでもSupabaseでも同じ形を渡せるようにし、
-// imageDataUrlはプレビュー兼アップロード元として任意で持たせる。
+/**
+ * 投稿フォームから保存処理へ渡す値。
+ *
+ * 保存先がlocalStorageでもSupabaseでも同じ形を使えるようにし、画像はブラウザ側の
+ * プレビューとサーバー側のStorageアップロードに共用できるData URLで受け渡す。
+ */
 export type ReviewDraft = {
-  productId: string;
+  /** 既存商品の候補を選んだ場合だけ設定する。 */
+  productId?: string;
+  productName: string;
   rating: number;
   sweetness: number;
   carbonation: CarbonationLevel;

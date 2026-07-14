@@ -1,10 +1,26 @@
+/**
+ * Supabaseの公開読み取りとレビュー投稿APIの境界。
+ *
+ * 商品・レビューの匿名読み取りはブラウザClientで行う一方、WorkOSのアクセストークンを
+ * 必要とする保存処理はRoute Handlerへ委譲する。こうしてHttpOnly CookieとJWTをブラウザへ出さない。
+ */
 import { createClient, hasSupabaseEnv } from "@/lib/supabase";
-import type { Review, ReviewDraft } from "@/lib/types";
+import type { Product, Review, ReviewDraft } from "@/lib/types";
+
+type ProductRow = {
+  id: string;
+  name: string;
+  maker: string;
+  category_id: string;
+  image_url: string;
+  created_at: string;
+};
 
 type ReviewRow = {
   id: string;
   user_id: string;
-  product_id: string;
+  product_id: string | null;
+  product_name: string;
   rating: number;
   sweetness: number;
   carbonation: number;
@@ -13,17 +29,49 @@ type ReviewRow = {
   purchase_location: Review["purchaseLocation"];
   comment: string;
   image_url: string | null;
+  like_count: number;
   created_at: string;
   updated_at: string | null;
   profiles?: { name?: string | null } | { name?: string | null }[] | null;
 };
 
+/** 公開Supabase設定がそろっている場合だけ、画面の読み取り先をリモートへ切り替える。 */
 export function canUseRemoteData() {
-  // SupabaseのURLと匿名キーがある環境だけ、リモートDBを使う。
-  // 未設定ならローカルデモとして動かし、開発者が.envなしでもUIを確認できる。
   return hasSupabaseEnv();
 }
 
+/**
+ * Supabaseの商品マスタを取得し、画面用のcamelCase型へ変換する。
+ * 接続未設定・取得失敗は空配列にして、ローカルseed表示を継続できるようにする。
+ */
+export async function fetchRemoteProducts(): Promise<Product[]> {
+  if (!canUseRemoteData()) return [];
+  const supabase = createClient();
+  if (!supabase) return [];
+
+  // 商品名候補だけでなく検索・商品詳細でも同じ商品マスタを使うため、
+  // Supabaseへ追加された商品をseed商品と同じcamelCaseのProductへ変換する。
+  const { data, error } = await supabase
+    .from("products")
+    .select("id,name,maker,category_id,image_url,created_at")
+    .order("created_at", { ascending: false });
+
+  if (error || !data) return [];
+
+  return (data as ProductRow[]).map((row) => ({
+    id: row.id,
+    name: row.name,
+    maker: row.maker,
+    categoryId: row.category_id,
+    imageUrl: row.image_url,
+    createdAt: row.created_at
+  }));
+}
+
+/**
+ * 公開レビューと投稿者プロフィール名をまとめて取得する。
+ * プロフィールの関連結果が単体・配列どちらで返ってもtoReviewで正規化する。
+ */
 export async function fetchRemoteReviews(): Promise<Review[]> {
   if (!canUseRemoteData()) return [];
   const supabase = createClient();
@@ -34,7 +82,7 @@ export async function fetchRemoteReviews(): Promise<Review[]> {
   const { data, error } = await supabase
     .from("reviews")
     .select(
-      "id,user_id,product_id,rating,sweetness,carbonation,scene,cost_performance,purchase_location,comment,image_url,created_at,updated_at,profiles(name)"
+      "id,user_id,product_id,product_name,rating,sweetness,carbonation,scene,cost_performance,purchase_location,comment,image_url,like_count,created_at,updated_at,profiles(name)"
     )
     .order("created_at", { ascending: false });
 
@@ -43,68 +91,30 @@ export async function fetchRemoteReviews(): Promise<Review[]> {
   return (data as ReviewRow[]).map(toReview);
 }
 
-export async function saveRemoteReviewDraft(draft: ReviewDraft): Promise<Review> {
-  const supabase = createClient();
-  if (!supabase) throw new Error("Supabaseの接続情報が見つかりません。");
-
-  const {
-    data: { user }
-  } = await supabase.auth.getUser();
-
-  if (!user) {
-    throw new Error("Supabase接続時はレビュー投稿にログインが必要です。マイページからログインしてください。");
-  }
-
-  let imageUrl: string | undefined;
-  if (draft.imageDataUrl) {
-    // フォームではプレビューしやすいData URLで画像を持つため、送信直前にBlobへ戻す。
-    // Storageのパスはuser.id配下にし、RLSで本人だけが差し替え・削除できる構造に揃える。
-    const blob = await fetch(draft.imageDataUrl).then((response) => response.blob());
-    const extension = blob.type === "image/png" ? "png" : blob.type === "image/webp" ? "webp" : "jpg";
-    const path = `${user.id}/${crypto.randomUUID()}.${extension}`;
-    const { error: uploadError } = await supabase.storage.from("review-images").upload(path, blob, {
-      contentType: blob.type,
-      upsert: false
-    });
-    if (uploadError) throw new Error("写真のアップロードに失敗しました。");
-    imageUrl = supabase.storage.from("review-images").getPublicUrl(path).data.publicUrl;
-  }
-
-  // reviewsへのinsertはDB側の制約とトリガーに任せる。成功時はprofilesを結合して取り直し、
-  // 画面で使うReview型へ変換して呼び出し元に返す。
-  const { data, error } = await supabase
-    .from("reviews")
-    .insert({
-      user_id: user.id,
-      product_id: draft.productId,
-      rating: draft.rating,
-      sweetness: draft.sweetness,
-      carbonation: draft.carbonation,
-      scene: draft.scene,
-      cost_performance: draft.costPerformance,
-      purchase_location: draft.purchaseLocation,
-      comment: draft.comment,
-      image_url: imageUrl
-    })
-    .select(
-      "id,user_id,product_id,rating,sweetness,carbonation,scene,cost_performance,purchase_location,comment,image_url,created_at,updated_at,profiles(name)"
-    )
-    .single();
-
-  if (error || !data) throw new Error(error?.message ?? "レビュー投稿に失敗しました。");
-  return toReview(data as ReviewRow);
+/**
+ * 投稿内容を認証済みRoute Handlerへ送り、WorkOS JWT付きでSupabaseへ保存する。
+ * Cookieをブラウザ側のAuthorizationヘッダーへ移さないことで、アクセストークンの公開を避ける。
+ */
+export async function saveRemoteReviewDraft(draft: ReviewDraft): Promise<void> {
+  const response = await fetch("/api/reviews", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(draft)
+  });
+  const result = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) throw new Error(result?.error ?? "レビュー投稿に失敗しました。");
 }
 
+/** Supabase行のsnake_caseを、画面共通のReview型へ変換する。 */
 function toReview(row: ReviewRow): Review {
-  // Supabaseのsnake_case行を、Reactコンポーネントで扱いやすいcamelCaseのReview型へ変換する。
-  // profilesはSupabaseの型推論で配列になる場合があるため、単一プロフィールへ正規化してから読む。
   const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
 
   return {
     id: row.id,
     userId: row.user_id,
     userName: profile?.name ?? "のみログユーザー",
-    productId: row.product_id,
+    productId: row.product_id ?? undefined,
+    productName: row.product_name,
     rating: row.rating,
     sweetness: row.sweetness,
     carbonation: row.carbonation as Review["carbonation"],
@@ -113,6 +123,7 @@ function toReview(row: ReviewRow): Review {
     purchaseLocation: row.purchase_location,
     comment: row.comment,
     imageUrl: row.image_url ?? undefined,
+    likeCount: row.like_count,
     createdAt: row.created_at,
     updatedAt: row.updated_at ?? undefined
   };

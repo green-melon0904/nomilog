@@ -1,11 +1,17 @@
+/**
+ * 匿名公開データ専用のブラウザClient。
+ *
+ * WorkOSのCookieやアクセストークンをブラウザ側へ移さず、商品・レビューの公開読み取りだけを
+ * このClientへ限定する。認証が必要な操作はサーバーRoute Handlerへ集約する。
+ */
 import { createBrowserClient } from "@supabase/ssr";
 
+/** 公開Supabase設定が完全な場合だけリモートデータを有効にする。 */
 export function hasSupabaseEnv() {
-  // NEXT_PUBLIC_* の2つが揃っている場合だけSupabase連携を有効にする。
-  // 片方だけ設定された中途半端な状態では、ローカルデモとして扱って画面を壊さない。
   return Boolean(process.env.NEXT_PUBLIC_SUPABASE_URL && process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY);
 }
 
+/** 設定不足ならnullを返し、ローカルseed表示へ安全にフォールバックする。 */
 export function createClient() {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const anonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -14,7 +20,5 @@ export function createClient() {
     return null;
   }
 
-  // ブラウザコンポーネントからAuthセッションとDB/Storageを使うためのクライアント。
-  // Server Clientはまだ使わず、MVPでは画面内の投稿・ログイン体験に範囲を絞る。
   return createBrowserClient(url, anonKey);
 }

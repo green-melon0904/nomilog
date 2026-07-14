@@ -1,3 +1,4 @@
+/** 投稿前にログインが必要な理由とマイページへの導線を表示する案内部品。 */
 import Link from "next/link";
 import { hasSupabaseEnv } from "@/lib/supabase";
 
@@ -13,7 +14,7 @@ export function LoginNotice({ compact = false }: { compact?: boolean }) {
           : "MVPデモではログイン済みユーザーとしてローカル保存します。"}
       </p>
       {!compact ? (
-        <Link href="/mypage" className="mt-3 inline-flex min-h-11 items-center rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-semibold text-white shadow-[0_10px_22px_rgba(42,155,225,0.2)]">
+        <Link href="/mypage" className="mt-3 inline-flex min-h-11 items-center rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-semibold !text-white shadow-[0_10px_22px_rgba(42,155,225,0.2)]">
           マイページを見る
         </Link>
       ) : null}
