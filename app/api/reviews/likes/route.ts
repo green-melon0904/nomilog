@@ -7,6 +7,7 @@
  */
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { NextRequest, NextResponse } from "next/server";
+import { isSameOriginRequest } from "@/lib/request-security";
 import { createWorkOSSupabaseClient } from "@/lib/supabase-server";
 import { hasWorkOSAuthConfig } from "@/lib/workos";
 
@@ -98,7 +99,7 @@ async function updateLike(request: NextRequest, shouldLike: boolean) {
   }
 
   // Cookieを利用する状態変更は同一オリジンからだけ受け付け、他サイト経由のCSRFを防ぐ。
-  if (request.headers.get("origin") !== request.nextUrl.origin) {
+  if (!isSameOriginRequest(request)) {
     return NextResponse.json({ error: "不正なリクエストです。" }, { status: 403 });
   }
 
