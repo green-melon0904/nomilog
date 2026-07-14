@@ -41,6 +41,7 @@ export function ReviewLikeButton({ reviewId, initialCount = 0 }: ReviewLikeButto
   const [authenticated, setAuthenticated] = useState(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [likeAnimationKey, setLikeAnimationKey] = useState(0);
 
   useEffect(() => {
     let active = true;
@@ -101,6 +102,9 @@ export function ReviewLikeButton({ reviewId, initialCount = 0 }: ReviewLikeButto
     setBusy(true);
     setLiked(nextLiked);
     setCount((current) => Math.max(0, current + (nextLiked ? 1 : -1)));
+    // 成功状態へ切り替わる瞬間だけアイコンを再マウントし、同じ状態の再描画では
+    // アニメーションを繰り返さない。失敗時は状態を戻すが、押下への反応は残す。
+    if (nextLiked) setLikeAnimationKey((current) => current + 1);
 
     try {
       if (remoteReview) {
@@ -139,10 +143,15 @@ export function ReviewLikeButton({ reviewId, initialCount = 0 }: ReviewLikeButto
       aria-pressed={liked}
       title={liked ? "いいねを取り消す" : "レビューにいいねする"}
       className={`tap-target inline-flex min-w-[52px] items-center justify-center gap-1 rounded-full px-2 text-[11px] transition-colors disabled:opacity-60 ${
-        liked ? "bg-[var(--accent)] !text-white" : "text-[var(--muted)]"
+        liked ? "bg-[#fff1f2] text-[#e5484d]" : "text-[var(--muted)]"
       }`}
     >
-      <Heart className="h-4 w-4" fill={liked ? "currentColor" : "none"} strokeWidth={1.7} />
+      <Heart
+        key={likeAnimationKey}
+        className={`h-4 w-4 ${likeAnimationKey > 0 ? "nomilog-like-pop" : ""}`}
+        fill={liked ? "currentColor" : "none"}
+        strokeWidth={1.7}
+      />
       <span>{count}</span>
       {error ? <span className="sr-only" role="status">{error}</span> : null}
     </button>
