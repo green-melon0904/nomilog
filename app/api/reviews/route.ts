@@ -8,13 +8,16 @@
 import { randomUUID } from "node:crypto";
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { NextRequest, NextResponse } from "next/server";
+import { imageExtension, readImageDataUrl } from "@/lib/image-data-url";
 import { isSameOriginRequest } from "@/lib/request-security";
+import { readJsonBodyWithinLimit, RequestBodyTooLargeError } from "@/lib/request-body";
 import { createWorkOSSupabaseClient } from "@/lib/supabase-server";
 import { hasWorkOSAuthConfig } from "@/lib/workos";
 import type { CarbonationLevel, PurchaseLocation, SceneTag } from "@/lib/types";
 
 const maxImageBytes = 2 * 1024 * 1024;
-const imageTypes = new Set(["image/jpeg", "image/png", "image/webp"]);
+// 2MB画像をBase64化した場合の増加分と、レビュー本文・選択値の余白を含めたRoute Handlerの上限。
+const maxReviewRequestBytes = 3 * 1024 * 1024;
 const purchaseLocations = new Set<PurchaseLocation>([
   "セブン-イレブン",
   "ローソン",
@@ -73,7 +76,15 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "レビュー投稿にはログインが必要です。" }, { status: 401 });
   }
 
-  const payload = await request.json().catch(() => null);
+  let payload: unknown;
+  try {
+    payload = await readJsonBodyWithinLimit(request, maxReviewRequestBytes);
+  } catch (error) {
+    if (error instanceof RequestBodyTooLargeError) {
+      return NextResponse.json({ error: "画像を含む入力は3MB以下にしてください。" }, { status: 413 });
+    }
+    return NextResponse.json({ error: "入力内容を確認してください。" }, { status: 400 });
+  }
   const review = parseReview(payload);
   if (!review) {
     return NextResponse.json({ error: "入力内容を確認してください。" }, { status: 400 });
@@ -150,7 +161,7 @@ function parseReview(value: unknown): ValidReview | null {
   const imageDataUrl = typeof input.imageDataUrl === "string" ? input.imageDataUrl : undefined;
 
   if (!productName || productName.length > 80 || !comment || comment.length > 300 || !hasValidScores || !validCarbonation || scene.length === 0 || scene.length > 6 || !location) return null;
-  if (imageDataUrl && !readImageDataUrl(imageDataUrl)) return null;
+  if (imageDataUrl && !readImageDataUrl(imageDataUrl, maxImageBytes)) return null;
 
   return {
     productId,
@@ -172,10 +183,10 @@ function parseReview(value: unknown): ValidReview | null {
  * 本人フォルダのRLSを適用できる形へ変換する。
  */
 async function uploadReviewImage(supabase: ReturnType<typeof createWorkOSSupabaseClient>, userId: string, imageDataUrl: string) {
-  const image = readImageDataUrl(imageDataUrl);
+  const image = readImageDataUrl(imageDataUrl, maxImageBytes);
   if (!image) throw new Error("Invalid image payload");
 
-  const extension = image.type === "image/png" ? "png" : image.type === "image/webp" ? "webp" : "jpg";
+  const extension = imageExtension(image.type);
   const path = `${userId}/${randomUUID()}.${extension}`;
   const { error } = await supabase.storage.from("review-images").upload(path, image.bytes, {
     contentType: image.type,
@@ -184,30 +195,6 @@ async function uploadReviewImage(supabase: ReturnType<typeof createWorkOSSupabas
   if (error) throw error;
 
   return supabase.storage.from("review-images").getPublicUrl(path).data.publicUrl;
-}
-
-/**
- * MIME・容量・マジックバイトを検証し、拡張子偽装された画像を受け付けない。
- * Content-Typeだけを信頼すると宣言と実体が違うファイルを保存できるため、許可形式と実バイト
- * の両方を確認し、公開Storageへ入る入力を狭める。
- */
-function readImageDataUrl(value: string) {
-  const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
-  if (!match || !imageTypes.has(match[1])) return null;
-  const bytes = Buffer.from(match[2], "base64");
-  if (bytes.length === 0 || bytes.length > maxImageBytes || !hasExpectedImageSignature(bytes, match[1])) return null;
-  return { type: match[1], bytes };
-}
-
-/**
- * 宣言されたMIMEと実ファイル先頭の署名が一致するか確認する。
- * 拡張子やブラウザのMIME申告は利用者が変更できるため、JPEG/PNG/WebPの実データ先頭を見て
- * 受け付ける形式を決める。
- */
-function hasExpectedImageSignature(bytes: Buffer, type: string) {
-  if (type === "image/jpeg") return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
-  if (type === "image/png") return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
-  return bytes.length >= 12 && bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP";
 }
 
 /**
