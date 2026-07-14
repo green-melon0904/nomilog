@@ -273,8 +273,8 @@ function SignedInMyPage({
         <div className="flex items-start gap-3">
           <ProfileAvatar large />
           <div className="relative min-w-0 flex-1 pt-0.5">
-            <button type="button" onClick={() => setProfileEditorOpen(true)} title="プロフィールを編集" className="tap-target absolute right-0 top-0 rounded-full border border-[var(--accent)] px-2 text-[10px] text-[var(--accent)]">
-              <span className="inline-flex items-center gap-1 whitespace-nowrap"><Pencil className="h-3 w-3" strokeWidth={1.9} />プロフィール編集</span>
+            <button type="button" onClick={() => setProfileEditorOpen(true)} title="プロフィールを編集" className="tap-target absolute right-0 top-0 grid border-0 bg-transparent p-0 text-[var(--accent)]">
+              <span className="inline-flex min-h-8 items-center gap-1 whitespace-nowrap rounded-full border border-[var(--accent)] px-2 text-[10px]"><Pencil className="h-3 w-3" strokeWidth={1.9} />プロフィール編集</span>
             </button>
             <div className="min-w-0 pr-[112px]">
               <h2 className="truncate text-[20px] leading-[1.15]">{profileName}</h2>
