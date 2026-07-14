@@ -28,6 +28,8 @@ const localLikesKey = "nomilog.reviewLikes.v1";
 
 /**
  * レビューのいいね件数と本人の選択状態を表示し、ログイン済みならトグルする。
+ * DBレビューとseedレビューで保存先が異なるため、識別子の形式で経路を切り替える。ただし
+ * 認証状態が確定する前は操作を止め、未ログインのクリックをローカル状態として誤保存しない。
  * @param reviewId DBレビューではUUID、seedレビューではデモ用の識別子
  * @param initialCount レビュー一覧が取得した集計済み件数
  */
@@ -147,7 +149,11 @@ export function ReviewLikeButton({ reviewId, initialCount = 0 }: ReviewLikeButto
   );
 }
 
-/** 端末内デモのいいね一覧から、指定レビューの選択状態を読む。 */
+/**
+ * 端末内デモのいいね一覧から、指定レビューの選択状態を読む。
+ * seedレビューにはDBのいいね行がないため、Supabase未接続のデモだけlocalStorageを使う。
+ * 壊れた保存値は未選択として扱い、いいねボタン以外の画面へエラーを広げない。
+ */
 function readLocalLike(reviewId: string) {
   try {
     const stored = JSON.parse(window.localStorage.getItem(localLikesKey) ?? "[]") as unknown;
@@ -157,14 +163,22 @@ function readLocalLike(reviewId: string) {
   }
 }
 
-/** 端末内デモのいいねを更新し、同じ端末で再訪したときにも状態を復元できるようにする。 */
+/**
+ * 端末内デモのいいねを更新し、同じ端末で再訪したときにも状態を復元できるようにする。
+ * 本番DBの代替ではなく接続前の挙動確認用なので、ユーザー単位の共有やサーバー集計は行わず、
+ * 端末内のUI状態だけを保持する。
+ */
 function writeLocalLike(reviewId: string, liked: boolean) {
   const stored = readLocalLikeIds();
   const next = liked ? [...new Set([...stored, reviewId])] : stored.filter((id) => id !== reviewId);
   window.localStorage.setItem(localLikesKey, JSON.stringify(next));
 }
 
-/** 壊れたlocalStorageを画面エラーへ広げず、文字列IDだけを取り出す。 */
+/**
+ * 壊れたlocalStorageを画面エラーへ広げず、文字列IDだけを取り出す。
+ * 保存値をそのまま信頼せず型を絞ることで、手動編集や旧形式が混ざってもいいね状態の復元だけ
+ * を安全に失敗させる。
+ */
 function readLocalLikeIds() {
   try {
     const stored = JSON.parse(window.localStorage.getItem(localLikesKey) ?? "[]") as unknown;

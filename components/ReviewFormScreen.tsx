@@ -20,12 +20,20 @@ import type { CarbonationLevel, Product, PurchaseLocation, SceneTag } from "@/li
 const maxImageBytes = 2 * 1024 * 1024;
 const acceptedTypes = ["image/jpeg", "image/png", "image/webp"];
 
-/** 全角半角と空白だけを吸収し、候補照合時の表記ゆれを小さくする。 */
+/**
+ * 全角半角と空白だけを吸収し、候補照合時の表記ゆれを小さくする。
+ * 商品名をあいまい検索の結果だけで既存商品へ紐づけると別商品を誤登録するため、意味を
+ * 変えない表記差だけを吸収し、記号や語順の補正は行わない。
+ */
 function normalizeProductName(value: string) {
   return value.normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase();
 }
 
-/** 表記ゆれだけを吸収し、商品名が完全一致した場合だけ既存商品へ紐づける。 */
+/**
+ * 表記ゆれだけを吸収し、商品名が完全一致した場合だけ既存商品へ紐づける。
+ * 候補が0件なら未登録飲料として投稿できる仕様を守りつつ、複数候補を勝手に選んでレビューを
+ * 別商品へ集計する事故を避けるため、一意一致だけを確定値として返す。
+ */
 function findExactProduct(name: string, catalog: Product[]) {
   const normalizedName = normalizeProductName(name);
   if (!normalizedName) return undefined;
@@ -52,7 +60,11 @@ function findProductCandidates(name: string, catalog: Product[]) {
     .slice(0, 5);
 }
 
-/** 投稿フォームの入力状態、認証状態、確認モーダルを管理する。 */
+/**
+ * 投稿フォームの入力状態、認証状態、確認モーダルを管理する。
+ * 入力体験のための即時検証は画面で行う一方、公開直前の確認と保存はサーバー・DBの検証を
+ * 通す。責務を分けることで、画面を迂回したリクエストでも投稿条件を守れるようにする。
+ */
 export function ReviewFormScreen() {
   const router = useRouter();
   const pathname = usePathname();
@@ -214,6 +226,7 @@ export function ReviewFormScreen() {
   function requestSubmitConfirmation() {
     setFormError("");
     // DB制約と同じ必須条件を送信前に検証し、どの入力が不足しているかをフォーム下部へ表示する。
+    // ここは操作性のための早期通知であり、改ざんされたリクエストを防ぐ最終境界ではない。
     if (!drinkName.trim()) return setFormError("飲み物名を入力してください。");
     if (rating < 1) return setFormError("総合評価を選択してください。");
     if (scene.length < 1) return setFormError("シーンを1つ以上選択してください。");
@@ -424,7 +437,8 @@ export function ReviewFormScreen() {
             </label>
             {imageError ? <p className="mt-2 text-[12px] text-[var(--danger)]">{imageError}</p> : null}
             {imageDataUrl ? (
-              // 選択したローカル画像はNext Imageの最適化対象にせず、そのままプレビューする。
+              // 選択したローカル画像はData URLのまま即時表示する。まだ公開URLがなく、Next Imageへ
+              // 渡すと最適化サーバー経由の変換を待つため、投稿前プレビューでは通常のimgを使う。
               // eslint-disable-next-line @next/next/no-img-element
               <img src={imageDataUrl} alt="写真プレビュー" className="mt-3 h-40 w-full rounded-[10px] object-cover" />
             ) : null}

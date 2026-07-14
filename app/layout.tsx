@@ -1,4 +1,8 @@
-/** アプリ全体のメタデータ、フォント、iPhoneのsafe-area設定を定義するルートレイアウト。 */
+/**
+ * アプリ全体のメタデータ、フォント、iPhoneのsafe-area設定を定義するルートレイアウト。
+ * 各ページでviewportや言語設定を個別に持つとiOSの表示条件が揺れるため、ブラウザが最初に
+ * 受け取る共通設定をここへ集約する。
+ */
 import type { Metadata, Viewport } from "next";
 import "./globals.css";
 

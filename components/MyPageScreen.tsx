@@ -40,7 +40,11 @@ type AuthUser = {
   createdAt?: string;
 };
 
-/** 認証状態を読み込み、ログイン前後のマイページを適切な状態で描画する。 */
+/**
+ * 認証状態を読み込み、ログイン前後のマイページを適切な状態で描画する。
+ * 認証確認中・未ログイン・ログイン済みを分けて描画し、確認前に個人レビューを一瞬表示したり
+ * 未ログイン画面へ誤って操作ボタンを出したりする状態を避ける。
+ */
 export function MyPageScreen() {
   const reviews = useNomilogReviews();
   const catalog = useNomilogProducts();
@@ -273,7 +277,11 @@ function SignedInMyPage({
   );
 }
 
-/** 画像未設定時もレイアウトを崩さないプロフィールアイコン。 */
+/**
+ * 画像未設定時もレイアウトを崩さないプロフィールアイコン。
+ * ユーザー画像の取得失敗をプロフィール全体の表示失敗にしないため、初期状態から固定サイズ
+ * の代替アイコンを使い、後から画像対応を追加してもカードの寸法を変えない。
+ */
 function ProfileAvatar({ large = false }: { large?: boolean }) {
   const size = large ? "h-[104px] w-[104px]" : "h-[104px] w-[104px]";
   return (
@@ -283,7 +291,11 @@ function ProfileAvatar({ large = false }: { large?: boolean }) {
   );
 }
 
-/** プロフィールカード内のレビュー・お気に入り・保存件数を同じレイアウトで表示する。 */
+/**
+ * プロフィールカード内のレビュー・お気に入り・保存件数を同じレイアウトで表示する。
+ * 件数が0や未実装でも列幅を保つことで、ログイン前後や将来の集計追加でカード全体が揺れない
+ * ようにする。値の取得は呼び出し側へ残し、表示部品はレイアウトだけを担当する。
+ */
 function ProfileMetric({ icon: Icon, label, value, bordered = false }: { icon: typeof Heart; label: string; value: number; bordered?: boolean }) {
   return (
     <div className={`flex items-center justify-center gap-2 px-1 ${bordered ? "border-l border-[var(--border)]" : ""}`}>
@@ -296,7 +308,11 @@ function ProfileMetric({ icon: Icon, label, value, bordered = false }: { icon: t
   );
 }
 
-/** 投稿者本人のレビューを、商品登録の有無にかかわらず一覧表示する。 */
+/**
+ * 投稿者本人のレビューを、商品登録の有無にかかわらず一覧表示する。
+ * 未登録飲料を商品詳細へ無理にリンクすると存在しないページへ遷移するため、商品がない場合は
+ * レビュー一覧へ戻す導線にし、投稿内容と入力した商品名はそのまま表示する。
+ */
 function PostedReviewCard({ review, products }: { review: Review; products: ProductWithStats[] }) {
   const product = products.find((item) => item.id === review.productId);
   const name = product?.name ?? review.productName ?? "名称未入力のドリンク";

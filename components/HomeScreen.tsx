@@ -1,6 +1,10 @@
 "use client";
 
-/** 検索・ランキング・新着レビューを一つの入口へまとめたホーム画面。 */
+/**
+ * 検索・ランキング・新着レビューを一つの入口へまとめたホーム画面。
+ * 初回訪問で目的が決まっていないユーザーでも、検索・人気商品・他人のレビューのどこから
+ * でも飲み物探しを始められるよう、主要な発見導線を同じスクロール内に置く。
+ */
 
 import Image from "next/image";
 import Link from "next/link";
@@ -20,7 +24,11 @@ const categoryStyles = [
   "bg-[#f2f3f5] text-[#666b72]"
 ];
 
-/** 同じレビュー配列からランキングと新着欄を作り、画面間で数値を揃える。 */
+/**
+ * 同じレビュー配列からランキングと新着欄を作り、画面間で数値を揃える。
+ * 表示ごとに別のデータ取得や集計を行うと、投稿直後に件数・平均値が食い違うため、
+ * seed、端末内レビュー、Supabaseレビューを統合した一つの配列を計算元にする。
+ */
 export function HomeScreen() {
   const reviews = useNomilogReviews();
   const catalog = useNomilogProducts();

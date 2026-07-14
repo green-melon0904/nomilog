@@ -1,4 +1,8 @@
-/** ホーム・レビュー一覧で共通利用するレビューカード。未登録飲料も同じ情報密度で表示する。 */
+/**
+ * ホーム・レビュー一覧で共通利用するレビューカード。未登録飲料も同じ情報密度で表示する。
+ * 商品詳細へのリンクといいね操作を別の要素に分け、いいねを押したときに詳細画面へ遷移する
+ * 競合を避ける。商品未登録でもレビュー本文を捨てず、同じカードの高さで記録を残す。
+ */
 import Image from "next/image";
 import Link from "next/link";
 import { GlassWater } from "lucide-react";
@@ -12,7 +16,11 @@ type ReviewListCardProps = {
   product?: Product;
 };
 
-/** 商品詳細リンクと、認証が必要ないいね操作を一つのカードにまとめる。 */
+/**
+ * 商品詳細リンクと、認証が必要ないいね操作を一つのカードにまとめる。
+ * カード全体をリンクにせず操作単位を分けることで、ログイン誘導やいいねの再試行を
+ * レビュー詳細への遷移から独立して扱える。
+ */
 export function ReviewListCard({ review, product }: ReviewListCardProps) {
   const productName = product?.name ?? review.productName ?? "名称未入力のドリンク";
   return (

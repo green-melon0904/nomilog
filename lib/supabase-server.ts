@@ -7,7 +7,11 @@
  */
 import { createClient } from "@supabase/supabase-js";
 
-/** JWTを一時的なアクセストークンとして使う、永続セッションを持たないClientを作る。 */
+/**
+ * JWTを一時的なアクセストークンとして使う、永続セッションを持たないClientを作る。
+ * Route Handlerの1リクエストだけでJWTを使い捨て、サーバーやブラウザへSupabaseのセッションを
+ * 保存しない。RLSはこのJWTのsubjectを使って本人確認を行う。
+ */
 export function createWorkOSSupabaseClient(accessToken: string) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const publishableKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;

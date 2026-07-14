@@ -51,7 +51,11 @@ type ValidReview = {
   imageDataUrl?: string;
 };
 
-/** ログイン中のユーザーが入力したレビューを検証し、画像があればStorageへ保存する。 */
+/**
+ * ログイン中のユーザーが入力したレビューを検証し、画像があればStorageへ保存する。
+ * 画面側の確認を通らない直接リクエストも同じ検証・認証・RLS境界へ通し、入力値の改ざんで
+ * 他人のレビューや商品集計を操作できないようにする。
+ */
 export async function POST(request: NextRequest) {
   if (!hasWorkOSAuthConfig()) {
     return NextResponse.json({ error: "ログイン設定が完了していません。" }, { status: 503 });
@@ -161,7 +165,11 @@ function parseReview(value: unknown): ValidReview | null {
   };
 }
 
-/** Data URLを検証済みバイナリへ変換し、本人フォルダへ新規画像として保存する。 */
+/**
+ * Data URLを検証済みバイナリへ変換し、本人フォルダへ新規画像として保存する。
+ * ブラウザから送られたData URLをそのまま公開しないことで、Storage側のMIME・容量制約と
+ * 本人フォルダのRLSを適用できる形へ変換する。
+ */
 async function uploadReviewImage(supabase: ReturnType<typeof createWorkOSSupabaseClient>, userId: string, imageDataUrl: string) {
   const image = readImageDataUrl(imageDataUrl);
   if (!image) throw new Error("Invalid image payload");
@@ -177,7 +185,11 @@ async function uploadReviewImage(supabase: ReturnType<typeof createWorkOSSupabas
   return supabase.storage.from("review-images").getPublicUrl(path).data.publicUrl;
 }
 
-/** MIME・容量・マジックバイトを検証し、拡張子偽装された画像を受け付けない。 */
+/**
+ * MIME・容量・マジックバイトを検証し、拡張子偽装された画像を受け付けない。
+ * Content-Typeだけを信頼すると宣言と実体が違うファイルを保存できるため、許可形式と実バイト
+ * の両方を確認し、公開Storageへ入る入力を狭める。
+ */
 function readImageDataUrl(value: string) {
   const match = /^data:(image\/(?:jpeg|png|webp));base64,([A-Za-z0-9+/]+={0,2})$/.exec(value);
   if (!match || !imageTypes.has(match[1])) return null;
@@ -186,19 +198,31 @@ function readImageDataUrl(value: string) {
   return { type: match[1], bytes };
 }
 
-/** 宣言されたMIMEと実ファイル先頭の署名が一致するか確認する。 */
+/**
+ * 宣言されたMIMEと実ファイル先頭の署名が一致するか確認する。
+ * 拡張子やブラウザのMIME申告は利用者が変更できるため、JPEG/PNG/WebPの実データ先頭を見て
+ * 受け付ける形式を決める。
+ */
 function hasExpectedImageSignature(bytes: Buffer, type: string) {
   if (type === "image/jpeg") return bytes.length >= 3 && bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff;
   if (type === "image/png") return bytes.length >= 8 && bytes.subarray(0, 8).equals(Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]));
   return bytes.length >= 12 && bytes.subarray(0, 4).toString("ascii") === "RIFF" && bytes.subarray(8, 12).toString("ascii") === "WEBP";
 }
 
-/** 全角半角と空白の差だけを吸収し、商品名の意図的なすり替えは残す。 */
+/**
+ * 全角半角と空白の差だけを吸収し、商品名の意図的なすり替えは残す。
+ * サーバーは表示名を商品IDの補助照合に使うため、あいまいな自動修正をすると別商品への投稿を
+ * 許してしまう。意味が変わる差は入力エラーとして残す。
+ */
 function normalizeProductName(value: string) {
   return value.normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase();
 }
 
-/** Supabaseのuuid列へ渡す値がUUID形式か確認する。 */
+/**
+ * Supabaseのuuid列へ渡す値がUUID形式か確認する。
+ * Route Handlerへ任意の文字列を渡すとDBエラーや不正な参照を招くため、UUID列へ到達する前に
+ * 形式を絞り、未登録飲料のnullとは別の扱いにする。
+ */
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
 }

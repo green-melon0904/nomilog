@@ -14,7 +14,11 @@ type LikeActionBody = {
   reviewId?: unknown;
 };
 
-/** 指定されたレビューについて、ログイン中の本人が押しているかを返す。 */
+/**
+ * 指定されたレビューについて、ログイン中の本人が押しているかを返す。
+ * いいね行を公開一覧として返すのではなく本人分だけを返し、UIの選択状態に必要な情報と
+ * 他人の行動履歴の秘匿を両立する。
+ */
 export async function GET(request: NextRequest) {
   if (!hasWorkOSAuthConfig()) {
     return NextResponse.json({ configured: false, authenticated: false, likedReviewIds: [] });
@@ -66,12 +70,20 @@ export async function GET(request: NextRequest) {
   }
 }
 
-/** レビューへのいいねを冪等に追加する。重複は複合主キーでDB側が拒否する。 */
+/**
+ * レビューへのいいねを冪等に追加する。重複は複合主キーでDB側が拒否する。
+ * 連打やネットワーク再送が同じ操作を複数回送っても件数が増えすぎないよう、重複排除は
+ * クライアントの状態ではなくDBの一意制約へ任せる。
+ */
 export async function POST(request: NextRequest) {
   return updateLike(request, true);
 }
 
-/** ログイン中の本人が押したいいねだけを削除する。 */
+/**
+ * ログイン中の本人が押したいいねだけを削除する。
+ * user_idをリクエスト本文から受け取らず、JWT subjectとRLSで削除対象を決めることで、他人の
+ * いいねを取り消すためのID差し替えを許さない。
+ */
 export async function DELETE(request: NextRequest) {
   return updateLike(request, false);
 }
@@ -127,7 +139,11 @@ async function updateLike(request: NextRequest, shouldLike: boolean) {
   }
 }
 
-/** いいね行の外部キーを満たすため、本人のプロフィールだけを作成または更新する。 */
+/**
+ * いいね行の外部キーを満たすため、本人のプロフィールだけを作成または更新する。
+ * WorkOSのユーザーはSupabase Authのトリガーで自動作成されないため、レビューやいいねの保存
+ * 入口で本人のsubjectに限ってプロフィールを整える。他ユーザーの行は作成しない。
+ */
 async function ensureProfile(
   supabase: ReturnType<typeof createWorkOSSupabaseClient>,
   userId: string,
@@ -143,7 +159,11 @@ async function ensureProfile(
   if (error) throw error;
 }
 
-/** トリガー反映後のレビュー行から、表示用の最新いいね数を読む。 */
+/**
+ * トリガー反映後のレビュー行から、表示用の最新いいね数を読む。
+ * 追加・削除のレスポンスをクライアントの推測値ではなくDBの集計値に合わせ、同時操作後も
+ * 次の表示で件数が戻らないようにする。
+ */
 async function readLikeCount(supabase: ReturnType<typeof createWorkOSSupabaseClient>, reviewId: string) {
   const { data, error } = await supabase
     .from("reviews")
@@ -154,14 +174,22 @@ async function readLikeCount(supabase: ReturnType<typeof createWorkOSSupabaseCli
   return Number(data.like_count) || 0;
 }
 
-/** クエリのIDをUUIDへ絞り、過剰な一括問い合わせを100件までに制限する。 */
+/**
+ * クエリのIDをUUIDへ絞り、過剰な一括問い合わせを100件までに制限する。
+ * URLへ任意の文字列や大量のIDを渡されてもDBエラーや不要な負荷を生まないよう、入力の形式と
+ * 件数をAPI境界で制限する。
+ */
 function parseReviewIds(value: string | null) {
   if (!value) return null;
   const ids = [...new Set(value.split(",").map((item) => parseReviewId(item)).filter((item): item is string => Boolean(item)))];
   return ids.length > 0 && ids.length <= 100 ? ids : null;
 }
 
-/** 外部入力のレビューIDをUUID形式へ検証する。 */
+/**
+ * 外部入力のレビューIDをUUID形式へ検証する。
+ * DBへ問い合わせる前に形式不正を400系の入力エラーとして扱い、内部のSQLエラーや実装詳細を
+ * クライアントへ漏らさない。
+ */
 function parseReviewId(value: unknown) {
   return typeof value === "string" && isUuid(value.trim()) ? value.trim() : null;
 }

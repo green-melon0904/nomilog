@@ -6,7 +6,11 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 import { NextResponse } from "next/server";
 import { hasWorkOSAuthConfig } from "@/lib/workos";
 
-/** WorkOSのセッションを確認し、表示に必要なユーザー情報だけを返す。 */
+/**
+ * WorkOSのセッションを確認し、表示に必要なユーザー情報だけを返す。
+ * クライアントはログイン状態と表示名だけが必要で、アクセストークンやCookieの値は不要なので、
+ * 最小限のレスポンスに限定して認証情報の露出範囲を抑える。
+ */
 export async function GET() {
   if (!hasWorkOSAuthConfig()) {
     return NextResponse.json({ configured: false, user: null }, { status: 503 });

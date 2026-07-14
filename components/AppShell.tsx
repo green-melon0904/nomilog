@@ -1,6 +1,10 @@
 "use client";
 
-/** 主要画面の余白と固定ボトムナビを管理するアプリシェル。 */
+/**
+ * 主要画面の余白と固定ボトムナビを管理するアプリシェル。
+ * 商品詳細と投稿フォームでは操作対象を画面へ集中させるためナビを外し、それ以外では
+ * どの画面からでも検索・投稿・マイページへ戻れるよう同じナビを表示する。
+ */
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
@@ -15,7 +19,11 @@ const navItems = [
   { href: "/mypage", label: "マイページ", icon: UserRound, activePath: "/mypage" }
 ];
 
-/** 商品閲覧・投稿では集中を優先し、それ以外の画面では主要導線を固定表示する。 */
+/**
+ * 商品閲覧・投稿では集中を優先し、それ以外の画面では主要導線を固定表示する。
+ * 画面ごとにナビを実装するとsafe-areaや未保存確認の挙動がずれるため、表示条件だけを
+ * ここへ集約し、各ページはコンテンツの責務に専念させる。
+ */
 export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   // 商品を読む画面とレビューを書く画面では、参考デザインと同じく内容へ集中できるよう

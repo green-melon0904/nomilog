@@ -35,7 +35,11 @@ type ReviewRow = {
   profiles?: { name?: string | null } | { name?: string | null }[] | null;
 };
 
-/** 公開Supabase設定がそろっている場合だけ、画面の読み取り先をリモートへ切り替える。 */
+/**
+ * 公開Supabase設定がそろっている場合だけ、画面の読み取り先をリモートへ切り替える。
+ * 設定途中の開発環境でもseed表示を壊さず、公開キーの不足を理由に検索・レビュー画面全体を
+ * エラーにしないため、接続可否をこのデータ層に閉じ込める。
+ */
 export function canUseRemoteData() {
   return hasSupabaseEnv();
 }
@@ -105,7 +109,11 @@ export async function saveRemoteReviewDraft(draft: ReviewDraft): Promise<void> {
   if (!response.ok) throw new Error(result?.error ?? "レビュー投稿に失敗しました。");
 }
 
-/** Supabase行のsnake_caseを、画面共通のReview型へ変換する。 */
+/**
+ * Supabase行のsnake_caseを、画面共通のReview型へ変換する。
+ * DBの命名規則をコンポーネントへ持ち込まないことで、localStorage由来のcamelCaseレビューと
+ * 同じ一覧・集計関数を使い、保存先による表示差を作らない。
+ */
 function toReview(row: ReviewRow): Review {
   const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
 

@@ -219,12 +219,20 @@ const reviewsKey = "nomilog.reviews.v1";
 const requestsKey = "nomilog.productRequests.v1";
 type StoredReview = Omit<Review, "purchaseLocation"> & { purchaseLocation?: string };
 
-/** カテゴリIDを画面表示用の日本語名へ変換し、未知のIDは「その他」へ退避する。 */
+/**
+ * カテゴリIDを画面表示用の日本語名へ変換し、未知のIDは「その他」へ退避する。
+ * DBや将来のseedに新しいIDが混ざってもカードの表示を空欄にせず、検索や商品詳細を継続できる
+ * よう、表示層では未知値を例外にしない。
+ */
 export function getCategoryName(categoryId: string) {
   return categories.find((category) => category.id === categoryId)?.name ?? "その他";
 }
 
-/** ISO形式の日付を、レビューカードで使う月日表記へ変換する。 */
+/**
+ * ISO形式の日付を、レビューカードで使う月日表記へ変換する。
+ * 保存形式と表示形式を分けておくことで、並び替えはタイムゾーンに依存しないISO値で行い、
+ * 表示だけを日本語ロケールへ揃えられる。
+ */
 export function formatDate(value: string) {
   return new Intl.DateTimeFormat("ja-JP", {
     month: "2-digit",
@@ -262,7 +270,11 @@ export function calculateStats(productId: string, reviews: Review[]): ProductSta
   };
 }
 
-/** 商品マスタを変更せず、現在のレビュー配列から表示用の集計値を合成する。 */
+/**
+ * 商品マスタを変更せず、現在のレビュー配列から表示用の集計値を合成する。
+ * seedや端末内投稿を含む最新のレビューを画面へ反映するため、マスタに保存された古い集計値を
+ * 上書きせず、表示時だけ導出値を重ねる。
+ */
 export function enrichProducts(reviews: Review[] = seedReviews, catalog: Product[] = products): ProductWithStats[] {
   return catalog.map((product) => ({
     ...product,
@@ -344,7 +356,11 @@ function normalizePurchaseLocation(value: string | undefined): PurchaseLocation 
   return purchaseLocations.includes(value as PurchaseLocation) ? (value as PurchaseLocation) : "その他";
 }
 
-/** seedレビューと端末内レビューを、画面が扱う単一の配列へまとめる。 */
+/**
+ * seedレビューと端末内レビューを、画面が扱う単一の配列へまとめる。
+ * 開発デモの投稿も公開レビューと同じ一覧・集計経路へ乗せることで、保存先ごとの分岐が画面に
+ * 増えることを防ぐ。本番のリモートレビュー追加は別の同期フックでこの配列へ重ねる。
+ */
 export function readAllReviews(): Review[] {
   return [...seedReviews, ...readLocalReviews()];
 }
@@ -391,14 +407,22 @@ export function saveReviewDraft(draft: ReviewDraft): Review {
   return review;
 }
 
-/** 端末内レビューを削除し、同じタブの各画面へ再計算イベントを通知する。 */
+/**
+ * 端末内レビューを削除し、同じタブの各画面へ再計算イベントを通知する。
+ * storageイベントは変更元と同じタブには届かないため、独自イベントも発火してホームや詳細の
+ * 件数・ランキングを削除直後に更新する。
+ */
 export function deleteLocalReview(reviewId: string) {
   const next = readLocalReviews().filter((review) => review.id !== reviewId);
   window.localStorage.setItem(reviewsKey, JSON.stringify(next));
   window.dispatchEvent(new Event("nomilog:reviews"));
 }
 
-/** 端末内に保存した商品リクエストを読み込み、壊れた値は空配列へ退避する。 */
+/**
+ * 端末内に保存した商品リクエストを読み込み、壊れた値は空配列へ退避する。
+ * リクエストは管理画面が整うまでのMVP導線なので、古い形式や手動編集で壊れても商品検索まで
+ * 巻き込んで画面を停止させない。
+ */
 export function readProductRequests(): ProductRequest[] {
   if (typeof window === "undefined") return [];
   try {

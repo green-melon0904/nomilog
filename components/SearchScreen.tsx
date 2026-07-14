@@ -1,6 +1,10 @@
 "use client";
 
-/** 商品名・メーカー・カテゴリ・購入場所を組み合わせて商品を探す画面。 */
+/**
+ * 商品名・メーカー・カテゴリ・購入場所を組み合わせて商品を探す画面。
+ * コンビニや自販機の前で短時間に候補を比較できるよう、検索文字・絞り込み・並び替えを同じ
+ * 画面で完結させ、条件はURLへ残して再訪や共有でも復元できるようにする。
+ */
 
 import { useMemo, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
@@ -18,7 +22,11 @@ import { useNomilogProducts } from "@/components/useNomilogProducts";
 
 type SortKey = "popular" | "new" | "rating";
 
-/** URLとローカル状態を同期し、検索条件を戻る・共有操作でも復元できるようにする。 */
+/**
+ * URLとローカル状態を同期し、検索条件を戻る・共有操作でも復元できるようにする。
+ * 検索条件をReact stateだけに置くとリロードや共有で失われるため、初期値と変更後の保存先を
+ * URLに統一する。ただし初期値はクエリへ重複して書かない。
+ */
 export function SearchScreen() {
   const router = useRouter();
   const params = useSearchParams();

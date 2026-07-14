@@ -7,7 +7,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSafeReturnTo } from "@/lib/auth-return-to";
 import { hasWorkOSAuthConfig } from "@/lib/workos";
 
-/** ログイン開始URLを生成してAuthKitへリダイレクトする。 */
+/**
+ * ログイン開始URLを生成してAuthKitへリダイレクトする。
+ * 画面側からWorkOSのURLを直接組み立てず入口をRoute Handlerへ集約することで、認証設定や
+ * returnToの検証をログイン導線全体で同じように適用する。
+ */
 export async function GET(request: NextRequest) {
   if (!hasWorkOSAuthConfig()) {
     return NextResponse.redirect(new URL("/mypage?auth=setup", request.url));

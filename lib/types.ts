@@ -1,4 +1,8 @@
-/** 商品検索やカテゴリ表示で使う、DBと画面の両方で安定したカテゴリ識別子。 */
+/**
+ * 商品検索やカテゴリ表示で使う、DBと画面の両方で安定したカテゴリ識別子。
+ * 表示名を識別子にすると文言変更で保存済みデータやURLが壊れるため、画面に出す日本語とは
+ * 分離したslugを型で制限する。
+ */
 export type CategorySlug = "soda" | "tea" | "coffee" | "alcohol" | "energy" | "other";
 
 export type PurchaseLocation =
@@ -64,7 +68,11 @@ export type Review = {
   id: string;
   userId: string;
   userName: string;
-  /** 既存商品に紐づく場合だけ保持し、未登録飲料ではundefinedにする。 */
+  /**
+   * 既存商品に紐づく場合だけ保持し、未登録飲料ではundefinedにする。
+   * 商品未登録でもレビュー投稿を許可する仕様のため、productIdの有無をレビューの存在条件や
+   * 表示対象の条件に使わない。
+   */
   productId?: string;
   productName?: string;
   rating: number;
@@ -84,7 +92,11 @@ export type Review = {
   updatedAt?: string;
 };
 
-/** 商品マスタへ即時登録せず、運用側の確認待ちとして受け付けるリクエスト。 */
+/**
+ * 商品マスタへ即時登録せず、運用側の確認待ちとして受け付けるリクエスト。
+ * ユーザー入力をそのまま全ユーザーの商品検索へ混ぜると誤字や重複商品が増えるため、運用で
+ * 確認できる別の状態として保持する。
+ */
 export type ProductRequest = {
   id: string;
   userId: string;
@@ -118,7 +130,11 @@ export type ProductWithStats = Product & ProductStats;
  * プレビューとサーバー側のStorageアップロードに共用できるData URLで受け渡す。
  */
 export type ReviewDraft = {
-  /** 既存商品の候補を選んだ場合だけ設定する。 */
+  /**
+   * 既存商品の候補を選んだ場合だけ設定する。
+   * 未登録飲料はproductNameだけで保存できるよう、候補未選択をundefinedとして表し、空文字を
+   * 「商品IDがある」と誤解しないようにする。
+   */
   productId?: string;
   productName: string;
   rating: number;

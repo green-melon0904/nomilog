@@ -1,4 +1,8 @@
-/** 動的セグメントの商品IDを商品詳細画面へ橋渡しするページ。 */
+/**
+ * 動的セグメントの商品IDを商品詳細画面へ橋渡しするページ。
+ * URL解決と商品詳細の表示を分離し、詳細画面のデータ集計やUI変更がルーティング処理へ
+ * 波及しないよう、ページ側はIDの受け渡しだけを担当する。
+ */
 import { AppShell } from "@/components/AppShell";
 import { ProductDetailScreen } from "@/components/ProductDetailScreen";
 

@@ -1,13 +1,21 @@
 "use client";
 
-/** 最新レビューを一覧表示する画面。商品マスタにない飲み物も名前だけで残す。 */
+/**
+ * 最新レビューを一覧表示する画面。商品マスタにない飲み物も名前だけで残す。
+ * レビューは商品マスタへの登録より先に投稿できるため、商品が未登録でも投稿者の記録を
+ * 一覧から消さず、詳細リンクだけを省略する。
+ */
 
 import { BrandHeader } from "@/components/BrandHeader";
 import { ReviewListCard } from "@/components/ReviewListCard";
 import { useNomilogReviews } from "@/components/useNomilogReviews";
 import { useNomilogProducts } from "@/components/useNomilogProducts";
 
-/** 投稿日時の新しい順でレビューを並べ、登録済み商品だけ詳細リンクを付ける。 */
+/**
+ * 投稿日時の新しい順でレビューを並べ、登録済み商品だけ詳細リンクを付ける。
+ * 未登録レビューをフィルターで除外するとユーザーの投稿が見えなくなるため、商品照合は
+ * 表示対象を決めるためではなく、遷移先の有無だけに使う。
+ */
 export function ReviewsScreen() {
   const reviews = useNomilogReviews();
   const catalog = useNomilogProducts();
