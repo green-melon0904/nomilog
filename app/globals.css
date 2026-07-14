@@ -105,6 +105,33 @@ a {
   min-height: 44px;
 }
 
+@keyframes nomilog-like-pop {
+  /* 押下の反応を短く伝え、レビュー一覧のスクロールを邪魔しない強さに留める。 */
+  0% {
+    transform: scale(0.82);
+  }
+
+  45% {
+    transform: scale(1.18);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.nomilog-like-pop {
+  animation: nomilog-like-pop 260ms cubic-bezier(0.2, 0.8, 0.2, 1);
+  transform-origin: center;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  /* 端末で動きを減らす設定を選んだユーザーには、色と状態だけで変化を伝える。 */
+  .nomilog-like-pop {
+    animation: none;
+  }
+}
+
 .scrollbar-none {
   /* 横スクロールのカテゴリやレコメンドは、スクロールバーを消してモバイルらしい見た目にする。 */
   scrollbar-width: none;
