@@ -1,14 +1,14 @@
 "use client";
 
 /**
- * seed商品を即時表示し、後からSupabaseの商品マスタを同じIDで上書きする同期フック。
- * ネットワーク待ちで検索候補を空にすると入力体験が遅くなるため、初回表示はローカルを
- * 優先し、リモートが使える場合だけ後から最新情報を重ねる。
+ * ローカルデモはseed商品を表示し、Supabase接続時はDBの商品マスタを取得する同期フック。
+ * 接続済み環境で仮データを先に出すとDB障害時に存在しない商品を選べるように見えるため、
+ * リモート利用時は取得結果だけをカタログとして扱う。
  */
 
 import { useEffect, useState } from "react";
 import { products } from "@/lib/nomilog-data";
-import { fetchRemoteProducts } from "@/lib/nomilog-remote";
+import { canUseRemoteData, fetchRemoteProducts } from "@/lib/nomilog-remote";
 import type { Product } from "@/lib/types";
 
 /**
@@ -17,18 +17,20 @@ import type { Product } from "@/lib/types";
  * 商品集合を参照し、接続設定の有無だけでUIの分岐が増えないようにする。
  */
 export function useNomilogProducts() {
-  const [catalog, setCatalog] = useState<Product[]>(products);
+  const remoteEnabled = canUseRemoteData();
+  // 接続済み環境で仮カタログを先に出すと、DB障害時に存在しない商品を選べるように見えてしまう。
+  // リモートでは空から開始し、ローカルデモだけが20件の仮データを即時表示する。
+  const [catalog, setCatalog] = useState<Product[]>(() => remoteEnabled ? [] : products);
 
   useEffect(() => {
-    // ネットワーク待ちで候補入力や検索を空にしないためseedを先に使い、取得後は同じIDを
-    // リモート側で上書きする。こうすると管理側の画像・メーカー更新も反映できる。
+    if (!remoteEnabled) return;
+
+    // 接続済み環境ではDB側でreviewableと明示された商品だけを使う。取得失敗も空配列として
+    // 扱い、仮の商品を表示してからAPIで拒否される不整合を作らない。
     void fetchRemoteProducts().then((remoteProducts) => {
-      if (remoteProducts.length === 0) return;
-      const merged = new Map(products.map((product) => [product.id, product]));
-      remoteProducts.forEach((product) => merged.set(product.id, product));
-      setCatalog([...merged.values()]);
+      setCatalog(remoteProducts);
     });
-  }, []);
+  }, [remoteEnabled]);
 
   return catalog;
 }

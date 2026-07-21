@@ -1,0 +1,27 @@
+-- 公開切替専用テンプレート。supabase/migrationsには置かないこと。
+-- この処理は仮レビューを実在商品の評価として残さないための最終切替であり、公開直前に
+-- 投稿を停止した保守時間だけで実行する。通常のマイグレーション適用中には実行しない。
+
+begin;
+
+-- 最初に、Storage管理画面またはサーバー側のStorage APIでreview-imagesバケットの画像を全て削除する。
+-- storage.objectsへのSQL直接DELETEはSupabaseに保護されているため、このテンプレートへ書かない。
+-- review_likesはreviewsへのON DELETE CASCADEで同時に削除される。
+
+delete from public.reviews;
+delete from public.product_requests;
+
+-- 公開前の仮商品を投稿対象外へ戻す。商品行は履歴監査用に残し、実在商品は下のINSERTで
+-- 新しいUUIDを使って登録する。仮商品の名前やメーカーだけを実在商品へ上書きしない。
+update public.products
+set is_reviewable = false;
+
+-- 実在する20品目を入力してから実行する。公開前に、製造元・表記・画像の利用許諾を必ず確認する。
+-- idはgen_random_uuid()などで新規発行し、category_idは既存カテゴリのUUIDを使う。
+-- insert into public.products (id, name, maker, category_id, image_url, is_reviewable) values
+--   (gen_random_uuid(), '<実在商品名>', '<実在メーカー名>', '<カテゴリUUID>', '<画像URL>', true);
+
+commit;
+
+-- 実行後の確認: reviews=0件、review_likes=0件、review-images=0件、
+-- is_reviewable=trueの商品が登録した実在20品目だけであることを管理画面またはSQLで確認する。

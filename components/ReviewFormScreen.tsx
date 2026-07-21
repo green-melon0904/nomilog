@@ -1,13 +1,12 @@
 "use client";
 
 /**
- * 商品名の候補選択を含むレビュー投稿フォーム。
+ * 運営カタログから商品を選ぶレビュー投稿フォーム。
  *
  * 画面側では入力しやすさと早いエラー表示を担い、保存直前の最終検証と認証境界は
  * サーバーAPIへ残す。投稿確認モーダルを必ず挟み、意図しない公開を防ぐ。
  */
 
-import Image from "next/image";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ImagePlus, Star } from "lucide-react";
@@ -16,49 +15,9 @@ import { canUseRemoteData, saveRemoteReviewDraft } from "@/lib/nomilog-remote";
 import { isSupportedImageMimeType, maxSelectableImageBytes, prepareImageDataUrl } from "@/lib/image-upload-client";
 import { hasSupabaseEnv } from "@/lib/supabase";
 import { useNomilogProducts } from "@/components/useNomilogProducts";
-import type { CarbonationLevel, Product, PurchaseLocation, SceneTag } from "@/lib/types";
+import type { CarbonationLevel, PurchaseLocation, SceneTag } from "@/lib/types";
 
 const maxImageBytes = 2 * 1024 * 1024;
-
-/**
- * 全角半角と空白だけを吸収し、候補照合時の表記ゆれを小さくする。
- * 商品名をあいまい検索の結果だけで既存商品へ紐づけると別商品を誤登録するため、意味を
- * 変えない表記差だけを吸収し、記号や語順の補正は行わない。
- */
-function normalizeProductName(value: string) {
-  return value.normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase();
-}
-
-/**
- * 表記ゆれだけを吸収し、商品名が完全一致した場合だけ既存商品へ紐づける。
- * 候補が0件なら未登録飲料として投稿できる仕様を守りつつ、複数候補を勝手に選んでレビューを
- * 別商品へ集計する事故を避けるため、一意一致だけを確定値として返す。
- */
-function findExactProduct(name: string, catalog: Product[]) {
-  const normalizedName = normalizeProductName(name);
-  if (!normalizedName) return undefined;
-
-  const matches = catalog.filter((item) => normalizeProductName(item.name) === normalizedName);
-  return matches.length === 1 ? matches[0] : undefined;
-}
-
-/**
- * 入力途中の商品候補を最大5件へ絞る。
- * 完全一致を先頭へ並べることで、既存商品を選ぶ操作を短くしつつ、候補の出し過ぎを防ぐ。
- */
-function findProductCandidates(name: string, catalog: Product[]) {
-  const normalizedQuery = normalizeProductName(name);
-  if (!normalizedQuery) return [];
-
-  return catalog
-    .filter((item) => normalizeProductName(item.name).includes(normalizedQuery))
-    .sort((first, second) => {
-      const firstExact = normalizeProductName(first.name) === normalizedQuery ? 1 : 0;
-      const secondExact = normalizeProductName(second.name) === normalizedQuery ? 1 : 0;
-      return secondExact - firstExact;
-    })
-    .slice(0, 5);
-}
 
 /**
  * 投稿フォームの入力状態、認証状態、確認モーダルを管理する。
@@ -70,11 +29,9 @@ export function ReviewFormScreen() {
   const pathname = usePathname();
   const params = useSearchParams();
   const catalog = useNomilogProducts();
-  const productId = params.get("productId");
-  const product = catalog.find((item) => item.id === productId);
-  const initialDrinkName = product?.name ?? "";
+  const initialProductId = params.get("productId") ?? "";
   const [rating, setRating] = useState(0);
-  const [drinkNameOverride, setDrinkNameOverride] = useState<string | null>(null);
+  const [selectedProductId, setSelectedProductId] = useState(initialProductId);
   const [sweetness, setSweetness] = useState(3);
   const [carbonation, setCarbonation] = useState<CarbonationLevel>(2);
   const [costPerformance, setCostPerformance] = useState(3);
@@ -85,7 +42,6 @@ export function ReviewFormScreen() {
   const [imageError, setImageError] = useState("");
   const [isImagePreparing, setIsImagePreparing] = useState(false);
   const [formError, setFormError] = useState("");
-  const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const [submitConfirmationOpen, setSubmitConfirmationOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -95,15 +51,16 @@ export function ReviewFormScreen() {
   const confirmationRef = useRef<HTMLDivElement>(null);
   const cancelConfirmationRef = useRef<HTMLButtonElement>(null);
   const imageReadId = useRef(0);
-  // 商品マスタの取得完了を待たずにフォームを描画するため、初期名とユーザー編集値を分離する。
-  // 後から商品が届いてもoverrideを優先し、入力中の飲み物名を上書きしない。
-  const drinkName = drinkNameOverride ?? initialDrinkName;
-  const matchedProduct = findExactProduct(drinkName, catalog);
-  const productCandidates = findProductCandidates(drinkName, catalog);
+  // 商品詳細から来た場合だけクエリの商品を初期選択する。中央の投稿導線は空のまま始め、
+  // 仮運用カタログにない飲み物を自由入力で投稿できないよう選択値だけを保存する。
+  const selectedProduct = catalog.find((item) => item.id === selectedProductId);
+  // URLを直接編集して存在しないproductIdを渡されても、selectの値を空へ戻す。
+  // 画面表示と送信前検証の前提をそろえ、存在しない候補が選ばれたように見える状態を防ぐ。
+  const selectedProductValue = selectedProduct?.id ?? "";
 
   // 初期値の味指標だけでは離脱確認を出さず、ユーザーが実際に変更した項目だけをdirtyとする。
   // こうすることで、画面を開いて戻っただけの操作に不要な確認を挟まない。
-  const dirty = drinkName !== initialDrinkName || rating > 0 || comment.length > 0 || scene.length > 0 || Boolean(imageDataUrl) || isImagePreparing;
+  const dirty = selectedProductId !== initialProductId || rating > 0 || comment.length > 0 || scene.length > 0 || Boolean(imageDataUrl) || isImagePreparing;
 
   useEffect(() => {
     // リロードやタブ閉じではAppShellの確認処理を通らないため、ブラウザ標準の離脱確認も有効にする。
@@ -239,7 +196,7 @@ export function ReviewFormScreen() {
     setFormError("");
     // DB制約と同じ必須条件を送信前に検証し、どの入力が不足しているかをフォーム下部へ表示する。
     // ここは操作性のための早期通知であり、改ざんされたリクエストを防ぐ最終境界ではない。
-    if (!drinkName.trim()) return setFormError("飲み物名を入力してください。");
+    if (!selectedProduct) return setFormError("カタログから飲み物を選択してください。");
     if (isImagePreparing) return setFormError("画像の準備が終わるまでお待ちください。");
     if (rating < 1) return setFormError("総合評価を選択してください。");
     if (scene.length < 1) return setFormError("シーンを1つ以上選択してください。");
@@ -264,12 +221,16 @@ export function ReviewFormScreen() {
 
     setIsSubmitting(true);
     setSubmitError("");
-    // 全角・半角や空白を正規化して既存商品と完全一致させる。
-    // 投稿元に関係なく、一意に一致した商品へ紐づけ、候補がない場合は未登録飲料として保存する。
-    const resolvedProductId = findExactProduct(drinkName, catalog)?.id;
+    if (!selectedProduct) {
+      setFormError("カタログから飲み物を選択してください。");
+      setSubmitError("カタログから飲み物を選択してください。");
+      return;
+    }
+
+    // 商品名は自由入力を使わず選択済みのカタログから確定し、商品IDと表示名の不整合を作らない。
     const draft = {
-      productId: resolvedProductId,
-      productName: drinkName.trim(),
+      productId: selectedProduct.id,
+      productName: selectedProduct.name,
       rating,
       sweetness,
       carbonation,
@@ -287,7 +248,7 @@ export function ReviewFormScreen() {
 
       setSubmitted(true);
       window.sessionStorage.removeItem("nomilog.reviewFormDirty");
-      router.push(resolvedProductId ? `/products/${resolvedProductId}` : "/reviews");
+      router.push(`/products/${selectedProduct.id}`);
     } catch (error) {
       // 保存に失敗した場合は確認モーダルを閉じず、入力を保ったまま再試行またはキャンセルを選べるようにする。
       const message = error instanceof Error ? error.message : "レビューの保存に失敗しました。";
@@ -325,57 +286,17 @@ export function ReviewFormScreen() {
         </section>
       ) : (
         <form onSubmit={onSubmit} className="pt-5">
-          <Field label="飲み物名" headingId="review-drink-name-label">
-            <input
-              id="review-drink-name"
-              type="text"
-              value={drinkName}
-              role="combobox"
-              onChange={(event) => {
-                const nextName = event.target.value.slice(0, 80);
-                setDrinkNameOverride(nextName);
-                setShowProductSuggestions(Boolean(nextName.trim()));
-              }}
-              onKeyDown={(event) => {
-                if (event.key === "Escape") setShowProductSuggestions(false);
-              }}
-              placeholder="飲んだドリンク名を入力"
-              aria-labelledby="review-drink-name-label"
-              aria-autocomplete="list"
-              aria-haspopup="listbox"
-              aria-controls="drink-name-suggestions"
-              aria-expanded={showProductSuggestions && productCandidates.length > 0}
-              className="tap-target w-full rounded-[10px] border border-[#d9dde2] px-4 text-[16px] font-normal outline-none placeholder:text-[#a9adb3] focus:border-[var(--accent)]"
-            />
-            {showProductSuggestions && productCandidates.length > 0 ? (
-              <div id="drink-name-suggestions" role="listbox" aria-label="商品候補" className="mt-2 overflow-hidden rounded-[10px] border border-[#d9dde2] bg-white shadow-[0_8px_20px_rgba(23,31,40,0.08)]">
-                <p className="border-b border-[#eef0f2] px-3 py-2 text-[12px] text-[var(--muted)]">商品候補</p>
-                <div className="divide-y divide-[#eef0f2]">
-                  {productCandidates.map((item) => (
-                    <button
-                      key={item.id}
-                      type="button"
-                      role="option"
-                      aria-selected={matchedProduct?.id === item.id}
-                      onClick={() => {
-                        setDrinkNameOverride(item.name);
-                        setShowProductSuggestions(false);
-                      }}
-                      className="tap-target flex min-h-[56px] w-full items-center justify-between gap-3 px-3 text-left hover:bg-[#f5faff]"
-                    >
-                      <span className="flex min-w-0 items-center gap-3">
-                        <Image src={item.imageUrl} alt="" width={40} height={40} className="h-10 w-10 shrink-0 object-contain" />
-                        <span className="min-w-0">
-                          <span className="block truncate text-[14px]">{item.name}</span>
-                          <span className="mt-0.5 block truncate text-[12px] text-[var(--muted)]">{item.maker}</span>
-                        </span>
-                      </span>
-                      <span className="shrink-0 text-[12px] text-[var(--accent)]">選択</span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            ) : null}
+          <Field label="飲み物" headingId="review-product-label">
+            <select
+              id="review-product"
+              value={selectedProductValue}
+              onChange={(event) => setSelectedProductId(event.target.value)}
+              aria-labelledby="review-product-label"
+              className="tap-target w-full rounded-[10px] border border-[#d9dde2] bg-white px-4 text-[16px] font-normal outline-none focus:border-[var(--accent)]"
+            >
+              <option value="">カタログから選択</option>
+              {catalog.map((item) => <option key={item.id} value={item.id}>{item.name} - {item.maker}</option>)}
+            </select>
           </Field>
 
           <section className="mt-6 border-b border-[var(--border)] pb-4">
@@ -473,7 +394,7 @@ export function ReviewFormScreen() {
             <div className="mx-auto max-w-[424px]">
               <h2 id="submit-confirmation-title" className="text-center text-[17px]">レビューを投稿しますか？</h2>
               <p id="submit-confirmation-description" className="mt-2 text-center text-[13px] font-normal leading-relaxed text-[var(--muted)]">
-                {matchedProduct ? `「${matchedProduct.name}」のレビューとして投稿します。投稿するとレビューが公開されます。` : "投稿するとレビューが公開されます。"}
+                {selectedProduct ? `「${selectedProduct.name}」のレビューとして投稿します。投稿するとレビューが公開されます。` : "投稿するとレビューが公開されます。"}
               </p>
               {submitError ? <p role="alert" className="mt-3 rounded-[8px] bg-[#fff3f3] p-3 text-[12px] text-[var(--danger)]">{submitError}</p> : null}
               <div className="mt-5 grid grid-cols-2 gap-3">

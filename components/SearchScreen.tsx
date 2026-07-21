@@ -14,8 +14,7 @@ import { ProductCard } from "@/components/ProductCard";
 import {
   categories,
   enrichProducts,
-  purchaseLocations,
-  saveProductRequest
+  purchaseLocations
 } from "@/lib/nomilog-data";
 import { useNomilogReviews } from "@/components/useNomilogReviews";
 import { useNomilogProducts } from "@/components/useNomilogProducts";
@@ -36,7 +35,6 @@ export function SearchScreen() {
   const [category, setCategory] = useState(params.get("category") ?? "all");
   const [location, setLocation] = useState(params.get("location") ?? "all");
   const [sort, setSort] = useState<SortKey>((params.get("sort") as SortKey) ?? "popular");
-  const [requested, setRequested] = useState(false);
 
   const results = useMemo(() => {
     // MVPの商品数ではサーバー検索の待ち時間より即時反応を優先し、商品マスタとレビューを
@@ -75,14 +73,6 @@ export function SearchScreen() {
     router.replace(`/search${next.toString() ? `?${next.toString()}` : ""}`);
   }
 
-  function requestProduct() {
-    // 商品が見つからない入力を即時マスタ登録すると、表記ミスが全ユーザーの検索結果へ混ざる。
-    // 管理画面がないMVPでは、まずリクエストとして端末へ残し、運用確認の入口にする。
-    if (!query.trim()) return;
-    saveProductRequest(query.trim());
-    setRequested(true);
-  }
-
   return (
     <div className="screen">
       <BrandHeader />
@@ -96,10 +86,7 @@ export function SearchScreen() {
         <Search className="h-5 w-5 text-[var(--text)]" strokeWidth={1.8} />
         <input
           value={query}
-          onChange={(event) => {
-            setQuery(event.target.value);
-            setRequested(false);
-          }}
+          onChange={(event) => setQuery(event.target.value)}
           placeholder="商品名・メーカーで検索"
           className="min-h-12 min-w-0 flex-1 bg-transparent text-[16px] outline-none"
         />
@@ -137,16 +124,6 @@ export function SearchScreen() {
       ) : (
         <div className="soft-card p-4">
           <p className="text-[16px] font-semibold">商品が見つかりません</p>
-          <p className="mt-2 text-[13px] leading-relaxed text-[var(--muted)]">
-            登録されていない商品は追加リクエストとして保存できます。
-          </p>
-          <button
-            disabled={!query.trim() || requested}
-            onClick={requestProduct}
-            className="tap-target mt-3 rounded-[8px] bg-[var(--accent)] px-4 text-[14px] font-semibold !text-white disabled:bg-[#b9d9ef]"
-          >
-            {requested ? "リクエスト済み" : "商品リクエストを送る"}
-          </button>
         </div>
       )}
     </div>

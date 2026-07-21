@@ -665,21 +665,20 @@ function ProfileMetric({ icon: Icon, label, value, bordered = false }: { icon: t
 }
 
 /**
- * 投稿者本人のレビューを、商品登録の有無にかかわらず一覧表示する。
- * 未登録飲料を商品詳細へ無理にリンクすると存在しないページへ遷移するため、商品がない場合は
- * レビュー一覧へ戻す導線にし、投稿内容と入力した商品名はそのまま表示する。
+ * 投稿者本人のカタログレビューを商品詳細へつないで表示する。
+ * 旧仕様の未登録行が移行前に残っていても、存在しない商品への導線を作らないため表示しない。
  */
 function PostedReviewCard({ review, products }: { review: Review; products: ProductWithStats[] }) {
   const product = products.find((item) => item.id === review.productId);
-  const name = product?.name ?? review.productName ?? "名称未入力のドリンク";
+  if (!product) return null;
 
   return (
-    <Link href={product ? `/products/${product.id}` : "/reviews"} className="soft-card flex min-h-[106px] items-center gap-4 px-4 py-3">
+    <Link href={`/products/${product.id}`} className="soft-card flex min-h-[106px] items-center gap-4 px-4 py-3">
       <span className="relative h-[78px] w-[74px] shrink-0 overflow-hidden rounded-[8px] bg-white">
-        {product ? <Image src={product.imageUrl} alt="" fill sizes="74px" className="object-contain p-1" /> : <MessageSquareMore className="absolute inset-0 m-auto h-7 w-7 text-[var(--accent)]" strokeWidth={1.5} />}
+        <Image src={product.imageUrl} alt="" fill sizes="74px" className="object-contain p-1" />
       </span>
       <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px]">{name}</span>
+        <span className="block truncate text-[15px]">{product.name}</span>
         <span className="mt-1 flex items-center gap-2"><RatingStars value={review.rating} /><span className="text-[12px] text-[var(--text)]">{review.rating.toFixed(1)}</span></span>
         <span className="mt-1 block truncate text-[12px] font-normal text-[#4b5158]">{review.comment}</span>
       </span>
