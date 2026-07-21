@@ -32,9 +32,9 @@ const categoryStyles = [
 export function HomeScreen() {
   const reviews = useNomilogReviews();
   const catalog = useNomilogProducts();
-  // ホームの「今週」という表示に合わせ、直近7日間の評価といいねから順位を計算する。
+  // ホームの「今週」という表示に合わせ、直近7日間の評価といいねから最大10位まで計算する。
   // 検索画面の人気順とは意図が異なるため、全期間向けのgetRankingをここで流用しない。
-  const ranking = getWeeklyRanking(reviews, 4, catalog);
+  const ranking = getWeeklyRanking(reviews, 10, catalog);
   const enriched = enrichProducts(reviews, catalog);
   const latestReviews = [...reviews]
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
@@ -68,17 +68,13 @@ export function HomeScreen() {
       </div>
 
       <section className="mt-6">
-        <SectionTitle
-          title="今週のランキング"
-          icon={<Crown className="h-5 w-5 fill-[var(--star)] text-[var(--star)]" strokeWidth={1.7} />}
-          href="/search?sort=weekly"
-        />
+        <SectionTitle title="今週のランキング" icon={<Crown className="h-5 w-5 fill-[var(--star)] text-[var(--star)]" strokeWidth={1.7} />} />
         <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {ranking.map((product, index) => (
             <Link
               href={`/products/${product.id}`}
               key={product.id}
-              className="relative min-w-[82px] flex-1 border-r border-[var(--border)] px-1.5 last:border-r-0"
+              className="relative w-[82px] shrink-0 border-r border-[var(--border)] px-1.5 last:border-r-0"
             >
               <span
                 className={`absolute left-0 top-0 z-10 grid h-6 w-6 place-items-center rounded-full text-[12px] font-semibold ${
@@ -94,7 +90,7 @@ export function HomeScreen() {
                 {index + 1}
               </span>
               <span className="relative block h-[112px]">
-                <Image src={product.imageUrl} alt={product.name} fill sizes="100px" className="object-contain" />
+                <Image src={product.imageUrl} alt={product.name} fill sizes="82px" className="object-contain" />
               </span>
               <span className="line-clamp-2 min-h-10 text-[12px] leading-[1.45]">{product.name}</span>
               <span className="mt-1 flex items-center justify-center gap-1 text-[13px] text-[var(--star)]">
@@ -142,13 +138,15 @@ export function HomeScreen() {
   );
 }
 
-function SectionTitle({ title, href, icon }: { title: string; href: string; icon?: React.ReactNode }) {
+function SectionTitle({ title, href, icon }: { title: string; href?: string; icon?: React.ReactNode }) {
   return (
     <div className="mb-3 flex items-center justify-between">
       <h2 className="flex items-center gap-1.5 text-[17px]">{icon}{title}</h2>
-      <Link href={href} className="inline-flex items-center text-[12px] text-[var(--accent)]">
-        すべて見る <ChevronRight className="h-4 w-4" />
-      </Link>
+      {href ? (
+        <Link href={href} className="inline-flex items-center text-[12px] text-[var(--accent)]">
+          すべて見る <ChevronRight className="h-4 w-4" />
+        </Link>
+      ) : null}
     </div>
   );
 }
