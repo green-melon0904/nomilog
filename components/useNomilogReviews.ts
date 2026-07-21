@@ -3,29 +3,36 @@
 /**
  * レビュー一覧を画面間で共有するための同期フック。
  *
- * 初期表示はseed/localStorageで即座に描画し、マウント後にSupabaseの公開データを重ねる。
+ * ローカルデモではseed/localStorageを即座に描画し、Supabase接続中は公開データだけを読む。
  * 同じタブの投稿通知と別タブのstorageイベントを同じ同期関数へ集約し、ホーム・検索・詳細の
- * 集計結果が画面ごとにずれないようにする。
+ * 集計結果が画面ごとにずれず、仮データを接続済み環境へ混ぜないようにする。
  */
 
 import { useEffect, useState } from "react";
 import { readAllReviews, seedReviews } from "@/lib/nomilog-data";
-import { fetchRemoteReviews } from "@/lib/nomilog-remote";
+import { canUseRemoteData, fetchRemoteReviews } from "@/lib/nomilog-remote";
 import type { Review } from "@/lib/types";
 
-/** seed、端末内レビュー、リモートレビューを表示用の配列として返す。 */
+/** ローカルデモまたはリモートのいずれか一方のレビューを表示用に返す。 */
 export function useNomilogReviews() {
-  const [reviews, setReviews] = useState<Review[]>(seedReviews);
+  const remoteEnabled = canUseRemoteData();
+  // Supabase接続中にseedを重ねると、仮の商品に付けたデモレビューが実データのように表示される。
+  // 接続済み環境ではDBだけを正として、公開時に仮レビューを実在商品のレビューへ誤継承しない。
+  const [reviews, setReviews] = useState<Review[]>(() => remoteEnabled ? [] : seedReviews);
 
   useEffect(() => {
     const sync = () => {
-      // リモート取得を待つと初回画面が空になるため、ローカルの即時値を先に描画する。
-      // Supabaseが設定されている場合だけ、後から最新の公開レビューを重ねる。
-      setReviews(readAllReviews());
+      if (!remoteEnabled) {
+        // ローカルデモではseedと端末内投稿を即時にまとめ、同じタブの投稿結果もすぐ反映する。
+        setReviews(readAllReviews());
+        return;
+      }
+
+      // 接続済み環境はリモートだけを表示する。テスト用seedや古い端末内レビューを重ねないことで、
+      // 実在商品への切り替え後に仮データが公開レビューとして見える事故を防ぐ。
+      setReviews([]);
       void fetchRemoteReviews().then((remoteReviews) => {
-        if (remoteReviews.length > 0) {
-          setReviews([...readAllReviews(), ...remoteReviews]);
-        }
+        setReviews(remoteReviews);
       });
     };
     sync();
@@ -37,7 +44,7 @@ export function useNomilogReviews() {
       window.removeEventListener("storage", sync);
       window.removeEventListener("nomilog:reviews", sync);
     };
-  }, []);
+  }, [remoteEnabled]);
 
   return reviews;
 }

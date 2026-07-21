@@ -9,7 +9,6 @@ import type {
   CarbonationLevel,
   Category,
   Product,
-  ProductRequest,
   ProductStats,
   ProductWithStats,
   PurchaseLocation,
@@ -61,8 +60,9 @@ export const demoUser = {
   avatarUrl: "飲"
 };
 
-// 商品を選ばずに投稿を始めるMVP導線では、この代表商品へレビューを紐づける。
-// 配列の並び順に依存するとseed商品の追加・並び替えで投稿先が変わるため、固定IDで参照する。
+// 公開前の仮運用で使う20品目のカタログ。公開時は仮レビュー・いいね・画像を削除してから、
+// 実在商品を新しい商品IDで登録する。仮データの名称だけを差し替えると、テスト投稿が実在商品の
+// 評価として残るため、ユーザー入力で商品を増やさないことと同じくデータの意味を明確に保つ。
 export const products: Product[] = [
   {
     id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
@@ -111,6 +111,118 @@ export const products: Product[] = [
     categoryId: "44444444-4444-4444-8444-444444444444",
     imageUrl: "/products/lemon-sour.svg",
     createdAt: "2026-06-09T19:00:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0007",
+    name: "静かな強炭酸水",
+    maker: "Mizuno Works",
+    categoryId: "11111111-1111-4111-8111-111111111111",
+    imageUrl: "/products/citrus.svg",
+    createdAt: "2026-06-16T08:20:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0008",
+    name: "塩ライムソーダ",
+    maker: "Sora Craft",
+    categoryId: "11111111-1111-4111-8111-111111111111",
+    imageUrl: "/products/citrus.svg",
+    createdAt: "2026-06-14T11:40:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0009",
+    name: "夜ふかしジンジャー",
+    maker: "Tonic Lab",
+    categoryId: "11111111-1111-4111-8111-111111111111",
+    imageUrl: "/products/cola.svg",
+    createdAt: "2026-06-13T19:10:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0010",
+    name: "香ばし麦茶",
+    maker: "山の茶房",
+    categoryId: "22222222-2222-4222-8222-222222222222",
+    imageUrl: "/products/green-tea.svg",
+    createdAt: "2026-06-17T07:50:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0011",
+    name: "白桃ジャスミン茶",
+    maker: "Mellow Tea",
+    categoryId: "22222222-2222-4222-8222-222222222222",
+    imageUrl: "/products/green-tea.svg",
+    createdAt: "2026-06-12T14:30:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0012",
+    name: "ほうじ茶ラテ",
+    maker: "Kissa Origin",
+    categoryId: "22222222-2222-4222-8222-222222222222",
+    imageUrl: "/products/latte.svg",
+    createdAt: "2026-06-08T09:10:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0013",
+    name: "ブラックモカ",
+    maker: "Daily Roast",
+    categoryId: "33333333-3333-4333-8333-333333333333",
+    imageUrl: "/products/cola.svg",
+    createdAt: "2026-06-15T06:45:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0014",
+    name: "深煎りカフェオレ",
+    maker: "Daily Roast",
+    categoryId: "33333333-3333-4333-8333-333333333333",
+    imageUrl: "/products/latte.svg",
+    createdAt: "2026-06-11T10:20:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0015",
+    name: "オーツミルクラテ",
+    maker: "North Cup",
+    categoryId: "33333333-3333-4333-8333-333333333333",
+    imageUrl: "/products/latte.svg",
+    createdAt: "2026-06-07T15:00:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0016",
+    name: "微炭酸チューハイ レモン",
+    maker: "北浜酒造",
+    categoryId: "44444444-4444-4444-8444-444444444444",
+    imageUrl: "/products/lemon-sour.svg",
+    createdAt: "2026-06-18T20:00:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0017",
+    name: "桃香るサワー",
+    maker: "Sakura Spirits",
+    categoryId: "44444444-4444-4444-8444-444444444444",
+    imageUrl: "/products/lemon-sour.svg",
+    createdAt: "2026-06-10T21:15:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0018",
+    name: "クラフトハイボール",
+    maker: "Amber House",
+    categoryId: "44444444-4444-4444-8444-444444444444",
+    imageUrl: "/products/lemon-sour.svg",
+    createdAt: "2026-06-06T18:35:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0019",
+    name: "シトラスエナジー",
+    maker: "Volt Lab",
+    categoryId: "55555555-5555-4555-8555-555555555555",
+    imageUrl: "/products/energy.svg",
+    createdAt: "2026-06-19T13:40:00.000Z"
+  },
+  {
+    id: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaa0020",
+    name: "ナイトベリーエナジー",
+    maker: "Volt Lab",
+    categoryId: "55555555-5555-4555-8555-555555555555",
+    imageUrl: "/products/energy.svg",
+    createdAt: "2026-06-05T22:10:00.000Z"
   }
 ];
 
@@ -120,6 +232,7 @@ export const seedReviews: Review[] = [
     userId: "u-1",
     userName: "しゅわ好き",
     productId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+    productName: "クラフトゼロコーラ",
     rating: 5,
     sweetness: 3,
     carbonation: 4,
@@ -134,6 +247,7 @@ export const seedReviews: Review[] = [
     userId: "u-2",
     userName: "駅前レビュー",
     productId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa1",
+    productName: "クラフトゼロコーラ",
     rating: 4,
     sweetness: 2,
     carbonation: 4,
@@ -148,6 +262,7 @@ export const seedReviews: Review[] = [
     userId: "u-3",
     userName: "限定品ハンター",
     productId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa2",
+    productName: "柚子スパーク",
     rating: 5,
     sweetness: 4,
     carbonation: 3,
@@ -162,6 +277,7 @@ export const seedReviews: Review[] = [
     userId: "u-4",
     userName: "お茶派",
     productId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa3",
+    productName: "深み緑茶 すっきり",
     rating: 4,
     sweetness: 1,
     carbonation: 0,
@@ -176,6 +292,7 @@ export const seedReviews: Review[] = [
     userId: "u-5",
     userName: "朝活ラテ",
     productId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa4",
+    productName: "朝の微糖ラテ",
     rating: 4,
     sweetness: 3,
     carbonation: 0,
@@ -190,6 +307,7 @@ export const seedReviews: Review[] = [
     userId: "u-6",
     userName: "夜更かし",
     productId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa5",
+    productName: "雷光エナジー",
     rating: 3,
     sweetness: 5,
     carbonation: 3,
@@ -204,6 +322,7 @@ export const seedReviews: Review[] = [
     userId: "u-7",
     userName: "家飲みメモ",
     productId: "aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaa6",
+    productName: "まる搾りレモンサワー",
     rating: 4,
     sweetness: 2,
     carbonation: 3,
@@ -216,8 +335,11 @@ export const seedReviews: Review[] = [
 ];
 
 const reviewsKey = "nomilog.reviews.v1";
-const requestsKey = "nomilog.productRequests.v1";
-type StoredReview = Omit<Review, "purchaseLocation"> & { purchaseLocation?: string };
+type StoredReview = Omit<Review, "purchaseLocation" | "productId" | "productName"> & {
+  productId?: string;
+  productName?: string;
+  purchaseLocation?: string;
+};
 
 /**
  * カテゴリIDを画面表示用の日本語名へ変換し、未知のIDは「その他」へ退避する。
@@ -327,22 +449,26 @@ export function getSimilarProducts(productId: string, reviews: Review[], limit =
 /**
  * localStorageから投稿レビューを読み込む。
  *
- * ブラウザ拡張や手動編集で壊れた値が入る可能性があるため、読み込み失敗は空配列へ戻す。
- * これは画面全体を壊すより、投稿や検索を継続できることを優先するためのフォールバック。
+ * 仮運用ではカタログ外の投稿を残さないため、旧UIで保存した未登録飲料もここで削除する。
+ * 直接localStorageを編集した値まで一覧へ混ぜず、商品詳細・集計の前提を画面側でも保つ。
  */
 export function readLocalReviews(): Review[] {
   if (typeof window === "undefined") return [];
   try {
-    // localStorageは壊れたJSONが入る可能性があるため、読めない場合は空配列に戻す。
-    // 画面全体を落とさず、投稿・検索の体験を続けられることを優先する。
     const stored = JSON.parse(window.localStorage.getItem(reviewsKey) ?? "[]") as StoredReview[];
     let migrated = false;
-    const reviews: Review[] = stored.map((review) => {
+    const reviews = stored.flatMap((review): Review[] => {
+      const product = typeof review.productId === "string" ? products.find((item) => item.id === review.productId) : undefined;
+      if (!product) {
+        // 旧仕様の未登録飲料は公開前のカタログ運用へ持ち込まず、読込時に端末からも削除する。
+        migrated = true;
+        return [];
+      }
+
       // 旧UIで保存した「セブン」は新しい選択肢「セブン-イレブン」へ読み込み時に正規化する。
-      // 既存レビューを消さず、新しい検索・購入場所表示で同じ値として扱えるようにする移行処理。
       const purchaseLocation = normalizePurchaseLocation(review.purchaseLocation);
-      if (purchaseLocation !== review.purchaseLocation) migrated = true;
-      return { ...review, purchaseLocation };
+      if (purchaseLocation !== review.purchaseLocation || review.productName !== product.name) migrated = true;
+      return [{ ...review, productId: product.id, productName: product.name, purchaseLocation }];
     });
     if (migrated) window.localStorage.setItem(reviewsKey, JSON.stringify(reviews));
     return reviews;
@@ -372,13 +498,16 @@ export function readAllReviews(): Review[] {
  * 集計・一覧表示のコードを分岐させずに済む。画像付きレビューは容量超過を明示する。
  */
 export function saveReviewDraft(draft: ReviewDraft): Review {
+  const product = products.find((item) => item.id === draft.productId);
+  if (!product) throw new Error("カタログから飲み物を選択してください。");
+
   const now = new Date().toISOString();
   const review: Review = {
     id: `local-${crypto.randomUUID()}`,
     userId: demoUser.userId,
     userName: demoUser.name,
-    productId: draft.productId,
-    productName: draft.productName,
+    productId: product.id,
+    productName: product.name,
     rating: draft.rating,
     sweetness: draft.sweetness,
     carbonation: draft.carbonation,
@@ -416,35 +545,4 @@ export function deleteLocalReview(reviewId: string) {
   const next = readLocalReviews().filter((review) => review.id !== reviewId);
   window.localStorage.setItem(reviewsKey, JSON.stringify(next));
   window.dispatchEvent(new Event("nomilog:reviews"));
-}
-
-/**
- * 端末内に保存した商品リクエストを読み込み、壊れた値は空配列へ退避する。
- * リクエストは管理画面が整うまでのMVP導線なので、古い形式や手動編集で壊れても商品検索まで
- * 巻き込んで画面を停止させない。
- */
-export function readProductRequests(): ProductRequest[] {
-  if (typeof window === "undefined") return [];
-  try {
-    // 商品リクエストもレビューと同様、壊れたlocalStorageで画面を壊さないよう空配列へ戻す。
-    return JSON.parse(window.localStorage.getItem(requestsKey) ?? "[]") as ProductRequest[];
-  } catch {
-    return [];
-  }
-}
-
-/**
- * 検索で見つからない飲み物を、即時の商品追加ではなく運用確認用リクエストとして保存する。
- * 商品マスタをユーザー入力で直接変更しないため、誤表記が検索結果へ混入するのを防げる。
- */
-export function saveProductRequest(name: string) {
-  const request: ProductRequest = {
-    id: `request-${crypto.randomUUID()}`,
-    userId: demoUser.userId,
-    name,
-    status: "new",
-    createdAt: new Date().toISOString()
-  };
-  window.localStorage.setItem(requestsKey, JSON.stringify([...readProductRequests(), request]));
-  return request;
 }

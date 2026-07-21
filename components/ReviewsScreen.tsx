@@ -1,9 +1,9 @@
 "use client";
 
 /**
- * 最新レビューを一覧表示する画面。商品マスタにない飲み物も名前だけで残す。
- * レビューは商品マスタへの登録より先に投稿できるため、商品が未登録でも投稿者の記録を
- * 一覧から消さず、詳細リンクだけを省略する。
+ * 運営カタログに紐づく最新レビューを一覧表示する画面。
+ * 仮運用では商品登録より先の投稿を許可しないため、一覧・商品詳細・ランキングが同じ商品集合を
+ * 参照する。古い未登録行が残っていても、DB移行完了まで画面へ露出させない。
  */
 
 import { BrandHeader } from "@/components/BrandHeader";
@@ -12,18 +12,19 @@ import { useNomilogReviews } from "@/components/useNomilogReviews";
 import { useNomilogProducts } from "@/components/useNomilogProducts";
 
 /**
- * 投稿日時の新しい順でレビューを並べ、登録済み商品だけ詳細リンクを付ける。
- * 未登録レビューをフィルターで除外するとユーザーの投稿が見えなくなるため、商品照合は
- * 表示対象を決めるためではなく、遷移先の有無だけに使う。
+ * 投稿日時の新しい順でレビューを並べ、商品マスタが確認できる行だけを表示する。
+ * Route HandlerとDB制約が今後の投稿を守る一方、移行の途中で古い行を表示しないため画面でも
+ * 最終確認を残す。
  */
 export function ReviewsScreen() {
   const reviews = useNomilogReviews();
   const catalog = useNomilogProducts();
-  // 未登録レビューを除外すると投稿者の記録が消えるため、商品リンクの有無だけを商品マスタの
-  // 照合結果で分け、レビュー自体はすべて一覧へ残す。
-  const latestReviews = [...reviews]
-    .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-    .map((review) => ({ review, product: catalog.find((item) => item.id === review.productId) }));
+  const latestReviews = reviews
+    .flatMap((review) => {
+      const product = catalog.find((item) => item.id === review.productId);
+      return product ? [{ review, product }] : [];
+    })
+    .sort((a, b) => Date.parse(b.review.createdAt) - Date.parse(a.review.createdAt));
 
   return (
     <div className="screen">

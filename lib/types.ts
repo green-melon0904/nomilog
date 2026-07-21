@@ -68,13 +68,9 @@ export type Review = {
   id: string;
   userId: string;
   userName: string;
-  /**
-   * 既存商品に紐づく場合だけ保持し、未登録飲料ではundefinedにする。
-   * 商品未登録でもレビュー投稿を許可する仕様のため、productIdの有無をレビューの存在条件や
-   * 表示対象の条件に使わない。
-   */
-  productId?: string;
-  productName?: string;
+  // 仮運用では運営カタログの商品だけをレビュー対象にし、全レビューを商品詳細・集計へ結び付ける。
+  productId: string;
+  productName: string;
   rating: number;
   sweetness: number;
   carbonation: CarbonationLevel;
@@ -90,21 +86,6 @@ export type Review = {
   likeCount?: number;
   createdAt: string;
   updatedAt?: string;
-};
-
-/**
- * 商品マスタへ即時登録せず、運用側の確認待ちとして受け付けるリクエスト。
- * ユーザー入力をそのまま全ユーザーの商品検索へ混ぜると誤字や重複商品が増えるため、運用で
- * 確認できる別の状態として保持する。
- */
-export type ProductRequest = {
-  id: string;
-  userId: string;
-  name: string;
-  maker?: string;
-  note?: string;
-  status: "new" | "reviewing" | "added" | "rejected";
-  createdAt: string;
 };
 
 /**
@@ -130,12 +111,8 @@ export type ProductWithStats = Product & ProductStats;
  * プレビューとサーバー側のStorageアップロードに共用できるData URLで受け渡す。
  */
 export type ReviewDraft = {
-  /**
-   * 既存商品の候補を選んだ場合だけ設定する。
-   * 未登録飲料はproductNameだけで保存できるよう、候補未選択をundefinedとして表し、空文字を
-   * 「商品IDがある」と誤解しないようにする。
-   */
-  productId?: string;
+  // 商品IDは画面の選択値とサーバーの実在確認を通る。未登録飲料の自由入力は仮運用では許可しない。
+  productId: string;
   productName: string;
   rating: number;
   sweetness: number;

@@ -104,9 +104,10 @@ export function HomeScreen() {
       <section className="mt-6">
         <SectionTitle title="最新のレビュー" href="/search?sort=new" />
         <div className="space-y-2">
-          {latestReviews.map((review) => (
-            <ReviewListCard key={review.id} review={review} product={catalog.find((item) => item.id === review.productId)} />
-          ))}
+          {latestReviews.flatMap((review) => {
+            const product = catalog.find((item) => item.id === review.productId);
+            return product ? <ReviewListCard key={review.id} review={review} product={product} /> : [];
+          })}
         </div>
         <Link href="/search?sort=new" className="tap-target mt-1 flex items-center justify-center gap-1 text-[13px] text-[var(--accent)]">
           もっと見る <ChevronRight className="h-4 w-4" />

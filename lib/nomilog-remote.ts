@@ -13,6 +13,7 @@ type ProductRow = {
   maker: string;
   category_id: string;
   image_url: string;
+  is_reviewable: boolean;
   created_at: string;
 };
 
@@ -53,23 +54,27 @@ export async function fetchRemoteProducts(): Promise<Product[]> {
   const supabase = createClient();
   if (!supabase) return [];
 
-  // 商品名候補だけでなく検索・商品詳細でも同じ商品マスタを使うため、
+  // 投稿フォームの選択肢だけでなく検索・商品詳細でも同じ商品マスタを使うため、
   // Supabaseへ追加された商品をseed商品と同じcamelCaseのProductへ変換する。
   const { data, error } = await supabase
     .from("products")
-    .select("id,name,maker,category_id,image_url,created_at")
+    .select("id,name,maker,category_id,image_url,is_reviewable,created_at")
     .order("created_at", { ascending: false });
 
   if (error || !data) return [];
 
-  return (data as ProductRow[]).map((row) => ({
-    id: row.id,
-    name: row.name,
-    maker: row.maker,
-    categoryId: row.category_id,
-    imageUrl: row.image_url,
-    createdAt: row.created_at
-  }));
+  return (data as ProductRow[])
+    // DBの既存商品を画面へ足し込むのではなく、レビュー可能と明示された20品目だけを返す。
+    // これにより、過去の試験データや公開準備中の商品が検索・投稿候補へ混ざらない。
+    .filter((row) => row.is_reviewable)
+    .map((row) => ({
+      id: row.id,
+      name: row.name,
+      maker: row.maker,
+      categoryId: row.category_id,
+      imageUrl: row.image_url,
+      createdAt: row.created_at
+    }));
 }
 
 /**
@@ -92,7 +97,10 @@ export async function fetchRemoteReviews(): Promise<Review[]> {
 
   if (error || !data) return [];
 
-  return (data as ReviewRow[]).map(toReview);
+  return (data as ReviewRow[]).flatMap((row) => {
+    const review = toReview(row);
+    return review ? [review] : [];
+  });
 }
 
 /**
@@ -114,14 +122,18 @@ export async function saveRemoteReviewDraft(draft: ReviewDraft): Promise<void> {
  * DBの命名規則をコンポーネントへ持ち込まないことで、localStorage由来のcamelCaseレビューと
  * 同じ一覧・集計関数を使い、保存先による表示差を作らない。
  */
-function toReview(row: ReviewRow): Review {
+function toReview(row: ReviewRow): Review | null {
+  // DB migration適用前の未登録レビューを一時的に読み取っても、カタログ運用の一覧へ表示しない。
+  // 保存境界はAPIとNOT NULL制約で守るが、段階的なデプロイ中の表示も安全側に寄せる。
+  if (!row.product_id) return null;
+
   const profile = Array.isArray(row.profiles) ? row.profiles[0] : row.profiles;
 
   return {
     id: row.id,
     userId: row.user_id,
     userName: profile?.name ?? "のみログユーザー",
-    productId: row.product_id ?? undefined,
+    productId: row.product_id,
     productName: row.product_name,
     rating: row.rating,
     sweetness: row.sweetness,

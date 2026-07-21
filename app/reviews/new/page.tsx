@@ -1,7 +1,7 @@
 /**
  * クエリの商品IDを投稿フォームへ渡すレビュー作成ページ。
- * 商品詳細からは対象商品を初期入力し、中央の投稿ボタンからは商品未選択で始められるため、
- * productIdを任意の入力として扱い、フォーム側で登録済み・未登録の両方を判断する。
+ * 商品詳細からは対象商品を初期選択し、中央の投稿ボタンからはカタログ選択前の状態で始める。
+ * 仮運用では運営カタログの商品だけを投稿対象にするため、フォーム側で実在商品を必須確認する。
  */
 import { Suspense } from "react";
 import { AppShell } from "@/components/AppShell";
@@ -13,8 +13,8 @@ export default async function ReviewNewPage({ searchParams }: { searchParams: Pr
   return (
     <AppShell>
       <Suspense>
-        {/* productIdが変わったときも前の商品名を残さないよう、キーでフォーム状態を作り直す。 */}
-        <ReviewFormScreen key={productId ?? "unregistered-drink"} />
+        {/* productIdが変わったときも前の選択を残さないよう、キーでフォーム状態を作り直す。 */}
+        <ReviewFormScreen key={productId ?? "catalog-select"} />
       </Suspense>
     </AppShell>
   );

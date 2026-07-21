@@ -41,10 +41,8 @@ const sceneTags = new Set<SceneTag>([
   "リラックス",
   "スポーツの後"
 ]);
-
 type ValidReview = {
-  productId?: string;
-  productName: string;
+  productId: string;
   rating: number;
   sweetness: number;
   carbonation: CarbonationLevel;
@@ -93,17 +91,15 @@ export async function POST(request: NextRequest) {
   try {
     const supabase = createWorkOSSupabaseClient(auth.accessToken);
 
-    // productIdと商品名をDBの実データで照合する。IDだけを信頼すると、別商品の評価を
-    // 任意の商品へ紐づけてランキングや平均値を汚染できるため、表示名も正規化して比較する。
-    if (review.productId) {
-      const { data: product, error: productError } = await supabase
-        .from("products")
-        .select("id, name")
-        .eq("id", review.productId)
-        .maybeSingle();
-      if (productError || !product || normalizeProductName(product.name) !== normalizeProductName(review.productName)) {
-        return NextResponse.json({ error: "選択した商品を確認してください。" }, { status: 400 });
-      }
+    // 商品名はリクエストから受け取らず、選択されたIDを商品マスタで引き直す。投稿可能かどうかは
+    // DBのis_reviewableを唯一の判定元にし、カタログ切り替え時に画面とAPIの許可範囲をずらさない。
+    const { data: product, error: productError } = await supabase
+      .from("products")
+      .select("id, name, is_reviewable")
+      .eq("id", review.productId)
+      .maybeSingle();
+    if (productError || !product || !product.is_reviewable) {
+      return NextResponse.json({ error: "カタログから飲み物を選択してください。" }, { status: 400 });
     }
 
     const profileName = [auth.user.firstName, auth.user.lastName].filter(Boolean).join(" ") || auth.user.email.split("@")[0] || "のみログユーザー";
@@ -116,11 +112,11 @@ export async function POST(request: NextRequest) {
     );
     if (profileError) throw profileError;
 
-    const imageUrl = review.imageDataUrl ? await uploadReviewImage(supabase, auth.user.id, review.imageDataUrl) : undefined;
+    const uploadedImage = review.imageDataUrl ? await uploadReviewImage(supabase, auth.user.id, review.imageDataUrl) : undefined;
     const { error: reviewError } = await supabase.from("reviews").insert({
       user_id: auth.user.id,
-      product_id: review.productId ?? null,
-      product_name: review.productName,
+      product_id: review.productId,
+      product_name: product.name,
       rating: review.rating,
       sweetness: review.sweetness,
       carbonation: review.carbonation,
@@ -128,9 +124,14 @@ export async function POST(request: NextRequest) {
       cost_performance: review.costPerformance,
       purchase_location: review.purchaseLocation,
       comment: review.comment,
-      image_url: imageUrl ?? null
+      image_url: uploadedImage?.publicUrl ?? null
     });
-    if (reviewError) throw reviewError;
+    if (reviewError) {
+      // Storageはreviews行と外部キーで結べない。INSERTが失敗したら自分でアップロードした画像を
+      // すぐ消し、失敗した投稿だけが公開バケットに残ることを防ぐ。
+      if (uploadedImage) await removeUploadedReviewImage(supabase, uploadedImage.path);
+      throw reviewError;
+    }
 
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
@@ -147,7 +148,6 @@ export async function POST(request: NextRequest) {
 function parseReview(value: unknown): ValidReview | null {
   if (!value || typeof value !== "object") return null;
   const input = value as Record<string, unknown>;
-  const productName = typeof input.productName === "string" ? input.productName.trim() : "";
   const comment = typeof input.comment === "string" ? input.comment.trim() : "";
   const productId = typeof input.productId === "string" && isUuid(input.productId) ? input.productId : undefined;
   const scores = [input.rating, input.sweetness, input.costPerformance];
@@ -160,12 +160,11 @@ function parseReview(value: unknown): ValidReview | null {
     : undefined;
   const imageDataUrl = typeof input.imageDataUrl === "string" ? input.imageDataUrl : undefined;
 
-  if (!productName || productName.length > 80 || !comment || comment.length > 300 || !hasValidScores || !validCarbonation || scene.length === 0 || scene.length > 6 || !location) return null;
+  if (!productId || !comment || comment.length > 300 || !hasValidScores || !validCarbonation || scene.length === 0 || scene.length > 6 || !location) return null;
   if (imageDataUrl && !readImageDataUrl(imageDataUrl, maxImageBytes)) return null;
 
   return {
     productId,
-    productName,
     rating: Number(input.rating),
     sweetness: Number(input.sweetness),
     carbonation: Number(carbonation) as CarbonationLevel,
@@ -194,22 +193,26 @@ async function uploadReviewImage(supabase: ReturnType<typeof createWorkOSSupabas
   });
   if (error) throw error;
 
-  return supabase.storage.from("review-images").getPublicUrl(path).data.publicUrl;
+  return {
+    path,
+    publicUrl: supabase.storage.from("review-images").getPublicUrl(path).data.publicUrl
+  };
 }
 
 /**
- * 全角半角と空白の差だけを吸収し、商品名の意図的なすり替えは残す。
- * サーバーは表示名を商品IDの補助照合に使うため、あいまいな自動修正をすると別商品への投稿を
- * 許してしまう。意味が変わる差は入力エラーとして残す。
+ * レビュー行の保存に失敗した後、直前に作ったStorageオブジェクトを片付ける。
+ * 元のDBエラーを優先して利用者へ返すため、削除失敗はログに残すだけにし、再試行時の原因を
+ * 画像削除エラーへすり替えない。移行SQLでも残存オブジェクトを掃除するため、二重の回収網になる。
  */
-function normalizeProductName(value: string) {
-  return value.normalize("NFKC").replace(/\s+/g, "").toLocaleLowerCase();
+async function removeUploadedReviewImage(supabase: ReturnType<typeof createWorkOSSupabaseClient>, path: string) {
+  const { error } = await supabase.storage.from("review-images").remove([path]);
+  if (error) console.error("[reviews] Failed to remove orphaned review image", error);
 }
 
 /**
  * Supabaseのuuid列へ渡す値がUUID形式か確認する。
  * Route Handlerへ任意の文字列を渡すとDBエラーや不正な参照を招くため、UUID列へ到達する前に
- * 形式を絞り、未登録飲料のnullとは別の扱いにする。
+ * 形式を絞る。実在確認はこの後の商品マスタ照会で行う。
  */
 function isUuid(value: string) {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
