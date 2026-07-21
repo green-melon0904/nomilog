@@ -161,7 +161,13 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
               {review.imageUrl ? (
                 // ユーザー投稿画像はData URLまたはStorage URLのため、動的なsrcをそのまま表示する。
                 // eslint-disable-next-line @next/next/no-img-element
-                <img src={review.imageUrl} alt="レビュー写真" className="mt-3 h-36 w-full rounded-[8px] object-cover" />
+                <img
+                  src={review.imageUrl}
+                  alt="レビュー写真"
+                  loading="lazy"
+                  decoding="async"
+                  className="mt-3 h-36 w-full rounded-[8px] object-cover"
+                />
               ) : null}
               <div className="mt-2 flex flex-wrap gap-1.5">
                 <Tag>{review.purchaseLocation}</Tag>

@@ -13,12 +13,12 @@ import { useEffect, useRef, useState } from "react";
 import { ArrowLeft, ImagePlus, Star } from "lucide-react";
 import { purchaseLocations, saveReviewDraft, sceneTags } from "@/lib/nomilog-data";
 import { canUseRemoteData, saveRemoteReviewDraft } from "@/lib/nomilog-remote";
+import { isSupportedImageMimeType, maxSelectableImageBytes, prepareImageDataUrl } from "@/lib/image-upload-client";
 import { hasSupabaseEnv } from "@/lib/supabase";
 import { useNomilogProducts } from "@/components/useNomilogProducts";
 import type { CarbonationLevel, Product, PurchaseLocation, SceneTag } from "@/lib/types";
 
 const maxImageBytes = 2 * 1024 * 1024;
-const acceptedTypes = ["image/jpeg", "image/png", "image/webp"];
 
 /**
  * 全角半角と空白だけを吸収し、候補照合時の表記ゆれを小さくする。
@@ -83,6 +83,7 @@ export function ReviewFormScreen() {
   const [comment, setComment] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>();
   const [imageError, setImageError] = useState("");
+  const [isImagePreparing, setIsImagePreparing] = useState(false);
   const [formError, setFormError] = useState("");
   const [showProductSuggestions, setShowProductSuggestions] = useState(false);
   const [submitted, setSubmitted] = useState(false);
@@ -93,6 +94,7 @@ export function ReviewFormScreen() {
   const [authStatus, setAuthStatus] = useState<"loading" | "signed-in" | "signed-out" | "unavailable">(remoteEnabled ? "loading" : "signed-in");
   const confirmationRef = useRef<HTMLDivElement>(null);
   const cancelConfirmationRef = useRef<HTMLButtonElement>(null);
+  const imageReadId = useRef(0);
   // 商品マスタの取得完了を待たずにフォームを描画するため、初期名とユーザー編集値を分離する。
   // 後から商品が届いてもoverrideを優先し、入力中の飲み物名を上書きしない。
   const drinkName = drinkNameOverride ?? initialDrinkName;
@@ -101,7 +103,7 @@ export function ReviewFormScreen() {
 
   // 初期値の味指標だけでは離脱確認を出さず、ユーザーが実際に変更した項目だけをdirtyとする。
   // こうすることで、画面を開いて戻っただけの操作に不要な確認を挟まない。
-  const dirty = drinkName !== initialDrinkName || rating > 0 || comment.length > 0 || scene.length > 0 || Boolean(imageDataUrl);
+  const dirty = drinkName !== initialDrinkName || rating > 0 || comment.length > 0 || scene.length > 0 || Boolean(imageDataUrl) || isImagePreparing;
 
   useEffect(() => {
     // リロードやタブ閉じではAppShellの確認処理を通らないため、ブラウザ標準の離脱確認も有効にする。
@@ -197,25 +199,35 @@ export function ReviewFormScreen() {
   }
 
   async function onImageChange(file?: File) {
+    const readId = ++imageReadId.current;
     setImageError("");
     setImageDataUrl(undefined);
+    setIsImagePreparing(false);
     if (!file) return;
 
-    // iPhoneで選ばれやすいHEICはMVPの変換対象外なので、対応形式と容量を選択直後に検証する。
-    if (!acceptedTypes.includes(file.type)) {
+    // iPhoneで選ばれやすいHEICはMVPの変換対象外なので、対応形式を選択直後に検証する。
+    if (!isSupportedImageMimeType(file.type)) {
       setImageError("JPEG / PNG / WebP のみ対応しています。HEICはMVPでは非対応です。");
       return;
     }
-    if (file.size > maxImageBytes) {
-      setImageError("画像サイズは2MB以内にしてください。");
+    if (file.size > maxSelectableImageBytes) {
+      setImageError("画像は50MB以下を選んでください。");
       return;
     }
 
-    // ローカルデモでは画像をlocalStorageへ保存するため、プレビューと保存に共用できるData URLへ変換する。
-    const reader = new FileReader();
-    reader.onload = () => setImageDataUrl(String(reader.result));
-    reader.onerror = () => setImageError("画像の読み込みに失敗しました。もう一度選択してください。");
-    reader.readAsDataURL(file);
+    setIsImagePreparing(true);
+    try {
+      // 端末内で縮小したData URLをローカルプレビューと保存に共用し、24MP/48MP写真も2MBのAPI境界へ収める。
+      const dataUrl = await prepareImageDataUrl(file, maxImageBytes);
+      if (readId !== imageReadId.current) return;
+      setImageDataUrl(dataUrl);
+      setImageError("");
+    } catch (error) {
+      if (readId !== imageReadId.current) return;
+      setImageError(error instanceof Error ? error.message : "画像の読み込みに失敗しました。もう一度選択してください。");
+    } finally {
+      if (readId === imageReadId.current) setIsImagePreparing(false);
+    }
   }
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -228,6 +240,7 @@ export function ReviewFormScreen() {
     // DB制約と同じ必須条件を送信前に検証し、どの入力が不足しているかをフォーム下部へ表示する。
     // ここは操作性のための早期通知であり、改ざんされたリクエストを防ぐ最終境界ではない。
     if (!drinkName.trim()) return setFormError("飲み物名を入力してください。");
+    if (isImagePreparing) return setFormError("画像の準備が終わるまでお待ちください。");
     if (rating < 1) return setFormError("総合評価を選択してください。");
     if (scene.length < 1) return setFormError("シーンを1つ以上選択してください。");
     if (!purchaseLocation) return setFormError("購入場所を選択してください。");
@@ -431,9 +444,13 @@ export function ReviewFormScreen() {
           </Field>
 
           <Field label="写真を追加（任意）" className="pt-6">
-            <label className="tap-target flex min-h-[80px] cursor-pointer items-center justify-center gap-2 rounded-[12px] border border-dashed border-[#b9bec5] text-[16px] text-[var(--accent)]">
-              <ImagePlus className="h-6 w-6" strokeWidth={1.7} /> 写真を選ぶ
-              <input type="file" accept="image/jpeg,image/png,image/webp" className="sr-only" onChange={(event) => onImageChange(event.target.files?.[0])} />
+            <label className={`tap-target flex min-h-[80px] cursor-pointer items-center justify-center gap-2 rounded-[12px] border border-dashed border-[#b9bec5] text-[16px] text-[var(--accent)] ${isImagePreparing ? "pointer-events-none opacity-60" : ""}`}>
+              <ImagePlus className="h-6 w-6" strokeWidth={1.7} /> {isImagePreparing ? "画像を準備中…" : "写真を選ぶ"}
+              <input type="file" accept="image/jpeg,image/png,image/webp" disabled={isImagePreparing} className="sr-only" onChange={(event) => {
+                const file = event.target.files?.[0];
+                event.target.value = "";
+                void onImageChange(file);
+              }} />
             </label>
             {imageError ? <p className="mt-2 text-[12px] text-[var(--danger)]">{imageError}</p> : null}
             {imageDataUrl ? (
@@ -445,7 +462,7 @@ export function ReviewFormScreen() {
           </Field>
 
           {formError ? <p id="review-form-error" role="alert" className="mt-4 rounded-[8px] bg-[#fff3f3] p-3 text-[12px] text-[var(--danger)]">{formError}</p> : null}
-          <button type="button" onClick={requestSubmitConfirmation} aria-describedby={formError ? "review-form-error" : undefined} className="tap-target mt-7 min-h-[54px] w-full rounded-[12px] bg-[var(--accent)] px-4 text-[18px] !text-white shadow-[0_6px_14px_rgba(42,155,225,0.18)]">
+          <button type="button" onClick={requestSubmitConfirmation} disabled={isImagePreparing} aria-describedby={formError ? "review-form-error" : undefined} className="tap-target mt-7 min-h-[54px] w-full rounded-[12px] bg-[var(--accent)] px-4 text-[18px] !text-white shadow-[0_6px_14px_rgba(42,155,225,0.18)] disabled:opacity-60">
             投稿する
           </button>
         </form>
