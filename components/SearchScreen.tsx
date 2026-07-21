@@ -14,12 +14,13 @@ import { ProductCard } from "@/components/ProductCard";
 import {
   categories,
   enrichProducts,
+  getWeeklyRanking,
   purchaseLocations
 } from "@/lib/nomilog-data";
 import { useNomilogReviews } from "@/components/useNomilogReviews";
 import { useNomilogProducts } from "@/components/useNomilogProducts";
 
-type SortKey = "popular" | "new" | "rating";
+type SortKey = "popular" | "new" | "rating" | "weekly";
 
 /**
  * URLとローカル状態を同期し、検索条件を戻る・共有操作でも復元できるようにする。
@@ -41,7 +42,7 @@ export function SearchScreen() {
     // 同じクライアント状態から絞り込む。購入場所は商品自身ではなくレビューの存在で判定する。
     const normalized = query.trim().toLowerCase();
     const selectedCategoryId = categories.find((item) => item.slug === category)?.id;
-    const products = enrichProducts(reviews, catalog).filter((product) => {
+    const matchesFilters = (product: ReturnType<typeof enrichProducts>[number]) => {
       const matchesQuery =
         !normalized ||
         product.name.toLowerCase().includes(normalized) ||
@@ -51,7 +52,16 @@ export function SearchScreen() {
         location === "all" ||
         reviews.some((review) => review.productId === product.id && review.purchaseLocation === location);
       return matchesQuery && matchesCategory && matchesLocation;
-    });
+    };
+
+    if (sort === "weekly") {
+      // ホームから来た「今週」表示では、評価方法だけでなく対象期間もホームと一致させる。
+      // 全期間の集計済みProductを並べ替えるだけでは、週次ランキング外の商品まで混ざるため、
+      // ランキング関数が返した順序を保ったまま検索条件だけを適用する。
+      return getWeeklyRanking(reviews, catalog.length, catalog).filter(matchesFilters);
+    }
+
+    const products = enrichProducts(reviews, catalog).filter(matchesFilters);
 
     // 並び順ごとの比較をここへ集約し、フィルター適用後の商品だけを比較する。
     // 同点時の第二キーを固定して、レビュー追加のタイミングで表示が不安定にならないようにする。
@@ -103,7 +113,7 @@ export function SearchScreen() {
       </div>
 
       <div className="scrollbar-none -mx-1 mb-4 flex gap-2 overflow-x-auto px-1">
-        <Select value={sort} onChange={(value) => setSort(value as SortKey)} options={[["popular", "人気順"], ["new", "新着"], ["rating", "評価"]]} />
+        <Select value={sort} onChange={(value) => setSort(value as SortKey)} options={[["popular", "人気順"], ["weekly", "今週"], ["new", "新着"], ["rating", "評価"]]} />
         <Select value={location} onChange={setLocation} options={[["all", "購入場所"], ...purchaseLocations.map((item) => [item, item])]} />
         <button onClick={() => syncUrl()} className="tap-target shrink-0 rounded-[8px] bg-[var(--accent)] px-4 text-[13px] font-semibold !text-white">
           反映

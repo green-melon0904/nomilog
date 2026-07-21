@@ -117,6 +117,11 @@ export function ReviewLikeButton({ reviewId, initialCount = 0 }: ReviewLikeButto
         if (!response.ok) throw new Error(data.error ?? "いいねの更新に失敗しました。");
         setLiked(Boolean(data.liked));
         if (typeof data.likeCount === "number") setCount(Math.max(0, data.likeCount));
+
+        // ランキングはレビュー配列のlikeCountから計算するため、ボタン内の件数だけ更新しても
+        // ホームの順位は変わらない。保存成功後だけ一覧を再取得し、評価・いいねを使う週次順位を
+        // リロードなしで更新する。失敗時はcatchで表示を戻すため通知しない。
+        window.dispatchEvent(new Event("nomilog:reviews"));
       } else {
         writeLocalLike(reviewId, nextLiked);
       }
