@@ -39,6 +39,7 @@ import {
   type ProfileView
 } from "@/lib/profile";
 import { enrichProducts, getRanking } from "@/lib/nomilog-data";
+import { isSupportedImageMimeType, maxSelectableImageBytes, prepareImageDataUrl } from "@/lib/image-upload-client";
 import { hasSupabaseEnv } from "@/lib/supabase";
 import type { ProductWithStats, Review } from "@/lib/types";
 import { useNomilogProducts } from "@/components/useNomilogProducts";
@@ -503,7 +504,7 @@ function ProfileEditDialog({
     }
   }
 
-  function handleAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
+  async function handleAvatarChange(event: React.ChangeEvent<HTMLInputElement>) {
     const file = event.target.files?.[0];
     // 同じファイルを選び直したときもchangeイベントが発火するよう、選択値をすぐに空に戻す。
     event.target.value = "";
@@ -513,36 +514,29 @@ function ProfileEditDialog({
     setIsAvatarLoading(false);
     if (!file) return;
 
-    if (!profileImageMimeTypes.includes(file.type as (typeof profileImageMimeTypes)[number])) {
+    if (!isSupportedImageMimeType(file.type)) {
       setError("画像はJPEG・PNG・WebP形式を選んでください。HEIC形式には対応していません。");
       return;
     }
-    if (file.size > maxProfileImageBytes) {
-      setError("画像サイズは2MB以下にしてください。");
+    if (file.size > maxSelectableImageBytes) {
+      setError("画像は50MB以下を選んでください。");
       return;
     }
 
     setIsAvatarLoading(true);
-    const reader = new FileReader();
-    reader.addEventListener("load", () => {
-      // 連続して画像を選んだとき、先に始めたFileReaderの完了結果で新しい選択を上書きしない。
+    try {
+      // 選択画像は保存前に端末内で縮小し、iPhoneの高解像度写真もプロフィールAPIの2MB境界へ収める。
+      const dataUrl = await prepareImageDataUrl(file, maxProfileImageBytes);
       if (readId !== avatarReadId.current) return;
-      if (typeof reader.result !== "string") {
-        setError("画像を読み込めませんでした。別の画像を選んでください。");
-        setIsAvatarLoading(false);
-        return;
-      }
-      setAvatarDataUrl(reader.result);
+      setAvatarDataUrl(dataUrl);
       setRemoveAvatar(false);
       setError(null);
-      setIsAvatarLoading(false);
-    });
-    reader.addEventListener("error", () => {
+    } catch (error) {
       if (readId !== avatarReadId.current) return;
-      setError("画像を読み込めませんでした。別の画像を選んでください。");
-      setIsAvatarLoading(false);
-    });
-    reader.readAsDataURL(file);
+      setError(error instanceof Error ? error.message : "画像を読み込めませんでした。別の画像を選んでください。");
+    } finally {
+      if (readId === avatarReadId.current) setIsAvatarLoading(false);
+    }
   }
 
   function removeProfileAvatar() {
@@ -578,7 +572,7 @@ function ProfileEditDialog({
                     画像を削除
                   </button>
                 ) : null}
-                <p className="text-[10px] font-normal leading-relaxed text-[var(--muted)]">JPEG・PNG・WebP、2MBまで</p>
+                <p className="text-[10px] font-normal leading-relaxed text-[var(--muted)]">JPEG・PNG・WebP、50MBまで</p>
               </div>
             </div>
           </fieldset>
