@@ -11,7 +11,7 @@ import Link from "next/link";
 import { ChevronRight, Crown, Search, Star } from "lucide-react";
 import { BrandHeader } from "@/components/BrandHeader";
 import { ReviewListCard } from "@/components/ReviewListCard";
-import { categories, enrichProducts, getRanking } from "@/lib/nomilog-data";
+import { categories, enrichProducts, getWeeklyRanking } from "@/lib/nomilog-data";
 import { useNomilogReviews } from "@/components/useNomilogReviews";
 import { useNomilogProducts } from "@/components/useNomilogProducts";
 
@@ -32,7 +32,9 @@ const categoryStyles = [
 export function HomeScreen() {
   const reviews = useNomilogReviews();
   const catalog = useNomilogProducts();
-  const ranking = getRanking(reviews, 4, catalog);
+  // ホームの「今週」という表示に合わせ、直近7日間の評価といいねから順位を計算する。
+  // 検索画面の人気順とは意図が異なるため、全期間向けのgetRankingをここで流用しない。
+  const ranking = getWeeklyRanking(reviews, 4, catalog);
   const enriched = enrichProducts(reviews, catalog);
   const latestReviews = [...reviews]
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
@@ -69,7 +71,7 @@ export function HomeScreen() {
         <SectionTitle
           title="今週のランキング"
           icon={<Crown className="h-5 w-5 fill-[var(--star)] text-[var(--star)]" strokeWidth={1.7} />}
-          href="/search?sort=popular"
+          href="/search?sort=weekly"
         />
         <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
           {ranking.map((product, index) => (

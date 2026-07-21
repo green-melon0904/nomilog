@@ -421,6 +421,69 @@ export function getRanking(reviews: Review[], limit = 5, catalog: Product[] = pr
     .slice(0, limit);
 }
 
+const weeklyRankingDurationMs = 7 * 24 * 60 * 60 * 1000;
+const ratingPriorReviewCount = 3;
+const maxLikesPerReview = 2;
+const fullyReliableReviewCount = 3;
+
+/**
+ * 直近7日間の評価と、1レビューあたりのいいねを使ってホーム用ランキングを作る。
+ *
+ * 平均評価は全レビューの週次平均へ3件分だけ寄せる。加えて、評価の信頼度は3件で上限にする。
+ * これにより評価1件だけの5.0が偶然1位になるのを防ぎつつ、件数そのものを人気の代理指標に
+ * しない。いいねは合計ではなくレビューあたりで正規化し、各投稿がどれだけ支持されたかを反映する。
+ *
+ * @param now 集計基準時刻。テストでは固定時刻を渡し、画面では現在時刻を使う。
+ */
+export function getWeeklyRanking(
+  reviews: Review[],
+  limit = 5,
+  catalog: Product[] = products,
+  now = new Date()
+) {
+  const nowTime = now.getTime();
+  const rankingStartTime = nowTime - weeklyRankingDurationMs;
+  const weeklyReviews = reviews.filter((review) => {
+    const createdAt = Date.parse(review.createdAt);
+    return createdAt >= rankingStartTime && createdAt <= nowTime;
+  });
+
+  if (weeklyReviews.length === 0) return [];
+
+  const weeklyAverageRating = weeklyReviews.reduce((total, review) => total + review.rating, 0) / weeklyReviews.length;
+
+  return enrichProducts(weeklyReviews, catalog)
+    .filter((product) => product.reviewCount > 0)
+    .map((product) => {
+      const productReviews = weeklyReviews.filter((review) => review.productId === product.id);
+      const totalLikes = productReviews.reduce((total, review) => total + (review.likeCount ?? 0), 0);
+      const likesPerReview = totalLikes / productReviews.length;
+      const adjustedRating =
+        (product.avgRating * product.reviewCount + weeklyAverageRating * ratingPriorReviewCount) /
+        (product.reviewCount + ratingPriorReviewCount);
+      const reviewReliability = Math.min(product.reviewCount / fullyReliableReviewCount, 1);
+
+      // 評価・支持度・評価の信頼度を0〜1へ揃えてから比較する。信頼度は3件で飽和するため、
+      // 大量投稿による人気順には戻らず、少数の偶然の高評価だけを抑える役割に限定される。
+      const score =
+        (adjustedRating / 5) * 0.5 +
+        (Math.min(likesPerReview, maxLikesPerReview) / maxLikesPerReview) * 0.2 +
+        reviewReliability * 0.3;
+
+      return { product, score, adjustedRating, likesPerReview, reviewReliability };
+    })
+    .sort((first, second) =>
+      second.score - first.score ||
+      second.adjustedRating - first.adjustedRating ||
+      second.likesPerReview - first.likesPerReview ||
+      second.reviewReliability - first.reviewReliability ||
+      first.product.name.localeCompare(second.product.name, "ja") ||
+      first.product.id.localeCompare(second.product.id)
+    )
+    .slice(0, limit)
+    .map(({ product }) => product);
+}
+
 /**
  * 甘さと炭酸の平均値を2次元座標として、指定商品に近い商品を返す。
  *
