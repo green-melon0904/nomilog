@@ -36,7 +36,10 @@ export function HomeScreen() {
   const enriched = enrichProducts(reviews, catalog);
   const latestReviews = [...reviews]
     .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
-    .slice(0, 2);
+    // 今週のランキングと同じレビュー母集団から、ホームでも新着6件を見せる。
+    // デモ運用中に投稿量が少ないため、最初の数件だけでは飲み物ごとの違いが伝わりにくく、
+    // 6件まで表示してコメント・購入場所の比較を始めやすくする。
+    .slice(0, 6);
 
   return (
     <div className="screen">

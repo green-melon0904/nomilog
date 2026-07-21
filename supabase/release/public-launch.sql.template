@@ -11,6 +11,11 @@ begin;
 delete from public.reviews;
 delete from public.product_requests;
 
+-- 仮レビュー専用のプロフィールも公開データへ混ざらないよう、固定プレフィックスで削除する。
+-- 実際の利用者プロフィールはこの命名規則に該当しないため、公開切替時の対象を限定できる。
+delete from public.profiles
+where user_id like 'demo-reviewer-%';
+
 -- 公開前の仮商品を投稿対象外へ戻す。商品行は履歴監査用に残し、実在商品は下のINSERTで
 -- 新しいUUIDを使って登録する。仮商品の名前やメーカーだけを実在商品へ上書きしない。
 update public.products
