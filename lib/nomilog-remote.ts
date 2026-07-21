@@ -61,7 +61,13 @@ export async function fetchRemoteProducts(): Promise<Product[]> {
     .select("id,name,maker,category_id,image_url,is_reviewable,created_at")
     .order("created_at", { ascending: false });
 
-  if (error || !data) return [];
+  if (error || !data) {
+    // 公開データを空として扱うのは、接続障害で古いseedを見せないための意図的な安全側の処理。
+    // ただし失敗理由まで捨てると、ホームが空になった時に設定・RLS・通信のどれを直すべきか判断できない。
+    // エラー内容に公開キーは含めず、開発者コンソールだけで取得失敗を追えるようにする。
+    console.error("[nomilog] Failed to load public products", error);
+    return [];
+  }
 
   return (data as ProductRow[])
     // DBの既存商品を画面へ足し込むのではなく、レビュー可能と明示された20品目だけを返す。
@@ -87,15 +93,21 @@ export async function fetchRemoteReviews(): Promise<Review[]> {
   if (!supabase) return [];
 
   // reviewsとprofilesをまとめて取得し、レビュー一覧で投稿者名を表示できる形にする。
-  // 取得に失敗してもローカルレビュー表示は継続したいため、呼び出し元には空配列を返す。
+  // review_likes経由でもprofilesへ到達できるため、Supabaseへreviews.user_idの外部キーを明示する。
+  // 関連名だけにすると結合先を一意に決められず、公開レビュー全体の取得が失敗する。
   const { data, error } = await supabase
     .from("reviews")
     .select(
-      "id,user_id,product_id,product_name,rating,sweetness,carbonation,scene,cost_performance,purchase_location,comment,image_url,like_count,created_at,updated_at,profiles(name)"
+      "id,user_id,product_id,product_name,rating,sweetness,carbonation,scene,cost_performance,purchase_location,comment,image_url,like_count,created_at,updated_at,profiles!reviews_user_id_fkey(name)"
     )
     .order("created_at", { ascending: false });
 
-  if (error || !data) return [];
+  if (error || !data) {
+    // 投稿一覧は空表示を許容して画面全体のクラッシュを避ける。一方で、読み取りRLSや関連取得の
+    // 不備を見落とさないよう、ブラウザの開発者コンソールへ失敗理由を残す。
+    console.error("[nomilog] Failed to load public reviews", error);
+    return [];
+  }
 
   return (data as ReviewRow[]).flatMap((row) => {
     const review = toReview(row);
