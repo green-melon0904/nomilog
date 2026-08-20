@@ -13,6 +13,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { RatingStars } from "@/components/RatingStars";
 import { ScoreMeter } from "@/components/ScoreMeter";
 import { ReviewLikeButton } from "@/components/ReviewLikeButton";
+import { FavoriteButton } from "@/components/FavoriteButton";
 import {
   carbonationLabels,
   calculateStats,
@@ -74,9 +75,12 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
         <Link href="/" aria-label="ホームへ戻る" className="tap-target grid w-11 place-items-center">
           <ArrowLeft className="h-6 w-6" strokeWidth={1.8} />
         </Link>
-        <button type="button" onClick={shareProduct} aria-label="商品を共有" className="tap-target grid w-11 place-items-center">
-          <Share2 className="h-6 w-6" strokeWidth={1.7} />
-        </button>
+        <div className="flex items-center gap-1">
+          <FavoriteButton productId={product.id} returnTo={`/products/${product.id}`} compact />
+          <button type="button" onClick={shareProduct} aria-label="商品を共有" className="tap-target grid w-11 place-items-center">
+            <Share2 className="h-6 w-6" strokeWidth={1.7} />
+          </button>
+        </div>
       </header>
 
       <div className="relative mx-auto h-[244px] w-full">

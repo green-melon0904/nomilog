@@ -12,7 +12,6 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   Bell,
-  Bookmark,
   CalendarDays,
   ChevronRight,
   CircleHelp,
@@ -28,7 +27,7 @@ import {
   X
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
-import { RatingStars } from "@/components/RatingStars";
+import { OwnedReviewCard } from "@/components/OwnedReviewCard";
 import {
   defaultProfileBio,
   maxProfileBioLength,
@@ -44,6 +43,7 @@ import { hasSupabaseEnv } from "@/lib/supabase";
 import type { ProductWithStats, Review } from "@/lib/types";
 import { useNomilogProducts } from "@/components/useNomilogProducts";
 import { useNomilogReviews } from "@/components/useNomilogReviews";
+import { useNomilogFavorites } from "@/components/useNomilogFavorites";
 
 type AuthUser = {
   id: string;
@@ -108,6 +108,7 @@ function readServerProfileAvatarUrl() {
 export function MyPageScreen() {
   const reviews = useNomilogReviews();
   const catalog = useNomilogProducts();
+  const { favoriteProductIds } = useNomilogFavorites();
   const remoteEnabled = hasSupabaseEnv();
   const [authStatus, setAuthStatus] = useState<"loading" | "signed-in" | "signed-out" | "unavailable">(remoteEnabled ? "loading" : "signed-in");
   const [remoteUser, setRemoteUser] = useState<AuthUser | null>(null);
@@ -125,6 +126,13 @@ export function MyPageScreen() {
   );
   const featuredProducts = useMemo(() => getRanking(reviews, 4, catalog), [catalog, reviews]);
   const allProducts = useMemo(() => enrichProducts(reviews, catalog), [catalog, reviews]);
+  const favoriteProducts = useMemo(
+    () => favoriteProductIds.flatMap((id) => {
+      const product = allProducts.find((item) => item.id === id);
+      return product ? [product] : [];
+    }),
+    [allProducts, favoriteProductIds]
+  );
   const profileName = remoteEnabled
     ? remoteUser?.name.trim() || remoteUser?.email.split("@")[0] || "のみログユーザー"
     : localProfileName;
@@ -222,7 +230,7 @@ export function MyPageScreen() {
           profileAvatarUrl={profileAvatarUrl}
           joinedAt={remoteUser?.createdAt}
           myReviews={myReviews}
-          featuredProducts={featuredProducts}
+          favoriteProducts={favoriteProducts}
           allProducts={allProducts}
           onProfileSaved={saveProfile}
         />
@@ -308,7 +316,7 @@ function SignedOutMyPage({
         </div>
       </section>
 
-      <ProductStrip title="人気のドリンク" products={featuredProducts} heartStyle="filled" />
+      <ProductStrip title="人気のドリンク" products={featuredProducts} />
 
       <section className="pt-6">
         <SectionTitle title="サポート・その他" />
@@ -328,7 +336,7 @@ function SignedInMyPage({
   profileAvatarUrl,
   joinedAt,
   myReviews,
-  featuredProducts,
+  favoriteProducts,
   allProducts,
   onProfileSaved
 }: {
@@ -337,14 +345,14 @@ function SignedInMyPage({
   profileAvatarUrl?: string;
   joinedAt?: string;
   myReviews: Review[];
-  featuredProducts: ProductWithStats[];
+  favoriteProducts: ProductWithStats[];
   allProducts: ProductWithStats[];
   onProfileSaved: (profile: ProfileUpdateInput) => Promise<void>;
 }) {
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
   const joinedLabel = joinedAt ? new Intl.DateTimeFormat("ja-JP", { year: "numeric", month: "long", day: "numeric" }).format(new Date(joinedAt)) : "メールコードで認証済み";
   const recentReviews = myReviews.slice(0, 2);
-  const savedProducts = featuredProducts.length > 0 ? featuredProducts : allProducts.slice(0, 4);
+  const reviewedProductCount = new Set(myReviews.map((review) => review.productId)).size;
 
   return (
     <div className="pt-4">
@@ -375,16 +383,19 @@ function SignedInMyPage({
         </div>
         <div className="mt-2 grid min-h-8 grid-cols-3 border-t border-[var(--border)] pt-1.5">
           <ProfileMetric icon={MessageSquareMore} label="レビュー" value={myReviews.length} />
-          <ProfileMetric icon={Heart} label="お気に入り" value={0} bordered />
-          <ProfileMetric icon={Bookmark} label="保存" value={0} bordered />
+          <ProfileMetric icon={Heart} label="お気に入り" value={favoriteProducts.length} bordered />
+          <ProfileMetric icon={Star} label="評価済み" value={reviewedProductCount} bordered />
         </div>
       </section>
 
       <section className="pt-6">
-        <SectionTitle title="投稿したレビュー" actionHref="/reviews" />
+        <SectionTitle title="投稿したレビュー" actionHref="/mypage/reviews" />
         {recentReviews.length > 0 ? (
           <div className="space-y-2">
-            {recentReviews.map((review) => <PostedReviewCard key={review.id} review={review} products={allProducts} />)}
+            {recentReviews.map((review) => {
+              const product = allProducts.find((item) => item.id === review.productId);
+              return product ? <OwnedReviewCard key={review.id} review={review} product={product} /> : null;
+            })}
           </div>
         ) : (
           <Link href="/reviews/new" className="soft-card flex min-h-[100px] items-center justify-between gap-4 px-5">
@@ -397,7 +408,13 @@ function SignedInMyPage({
         )}
       </section>
 
-      <ProductStrip title="お気に入りドリンク" products={savedProducts} heartStyle="filled" />
+      <ProductStrip
+        title="お気に入りドリンク"
+        products={favoriteProducts}
+        heartStyle="filled"
+        actionHref="/mypage/favorites"
+        emptyMessage="商品詳細のハートを押すと、ここに表示されます。"
+      />
 
       <section className="pt-6">
         <SectionTitle title="よく買う場所" />
@@ -413,7 +430,7 @@ function SignedInMyPage({
         <div className="soft-card overflow-hidden">
           <SupportRow icon={UserRound} label="プロフィール編集" onClick={() => setProfileEditorOpen(true)} />
           <SupportRow icon={Bell} label="通知設定" />
-          <SupportRow icon={Heart} label="お気に入り管理" />
+          <SupportRow icon={Heart} label="お気に入り管理" href="/mypage/favorites" />
           <Link href="/sign-out" className="tap-target flex items-center gap-4 border-b-0 px-5 text-[15px] text-[var(--text)]">
             <LogOut className="h-5 w-5 text-[var(--text)]" strokeWidth={1.7} />
             <span className="flex-1">ログアウト</span>
@@ -648,8 +665,8 @@ function ProfileAvatar({ large = false, avatarUrl }: { large?: boolean; avatarUr
 }
 
 /**
- * プロフィールカード内のレビュー・お気に入り・保存件数を同じレイアウトで表示する。
- * 件数が0や未実装でも列幅を保つことで、ログイン前後や将来の集計追加でカード全体が揺れない
+ * プロフィールカード内のレビュー・お気に入り・評価済み商品数を同じレイアウトで表示する。
+ * 件数が0でも列幅を保つことで、データ取得後にカード全体が揺れない
  * ようにする。値の取得は呼び出し側へ残し、表示部品はレイアウトだけを担当する。
  */
 function ProfileMetric({ icon: Icon, label, value, bordered = false }: { icon: typeof Heart; label: string; value: number; bordered?: boolean }) {
@@ -664,43 +681,39 @@ function ProfileMetric({ icon: Icon, label, value, bordered = false }: { icon: t
   );
 }
 
-/**
- * 投稿者本人のカタログレビューを商品詳細へつないで表示する。
- * 旧仕様の未登録行が移行前に残っていても、存在しない商品への導線を作らないため表示しない。
- */
-function PostedReviewCard({ review, products }: { review: Review; products: ProductWithStats[] }) {
-  const product = products.find((item) => item.id === review.productId);
-  if (!product) return null;
-
-  return (
-    <Link href={`/products/${product.id}`} className="soft-card flex min-h-[106px] items-center gap-4 px-4 py-3">
-      <span className="relative h-[78px] w-[74px] shrink-0 overflow-hidden rounded-[8px] bg-white">
-        <Image src={product.imageUrl} alt="" fill sizes="74px" className="object-contain p-1" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-[15px]">{product.name}</span>
-        <span className="mt-1 flex items-center gap-2"><RatingStars value={review.rating} /><span className="text-[12px] text-[var(--text)]">{review.rating.toFixed(1)}</span></span>
-        <span className="mt-1 block truncate text-[12px] font-normal text-[#4b5158]">{review.comment}</span>
-      </span>
-      <ChevronRight className="h-5 w-5 shrink-0" strokeWidth={1.7} />
-    </Link>
-  );
-}
-
-function ProductStrip({ title, products, heartStyle }: { title: string; products: ProductWithStats[]; heartStyle: "filled" | "outline" }) {
+function ProductStrip({
+  title,
+  products,
+  heartStyle = "outline",
+  actionHref = "/search",
+  emptyMessage
+}: {
+  title: string;
+  products: ProductWithStats[];
+  heartStyle?: "filled" | "outline";
+  actionHref?: string;
+  emptyMessage?: string;
+}) {
   return (
     <section className="pt-6">
-      <SectionTitle title={title} actionHref="/search" />
-      <div className="scrollbar-none -mx-[18px] flex gap-3 overflow-x-auto px-[18px] pb-1">
-        {products.map((product) => (
-          <Link key={product.id} href={`/products/${product.id}`} className="soft-card relative w-[138px] shrink-0 overflow-hidden p-3">
-            <Heart className={`absolute right-2 top-2 h-5 w-5 ${heartStyle === "filled" ? "fill-[var(--accent)] text-[var(--accent)]" : "text-[var(--accent)]"}`} strokeWidth={1.8} />
-            <span className="relative mx-auto block h-[94px] w-full"><Image src={product.imageUrl} alt={product.name} fill sizes="138px" className="object-contain" /></span>
-            <span className="mt-2 block line-clamp-2 text-[12px] leading-snug text-[var(--text)]">{product.name}</span>
-            <span className="mt-2 flex items-center gap-1 text-[12px] text-[var(--star)]"><Star className="h-4 w-4 fill-[var(--star)]" strokeWidth={1.5} />{product.avgRating.toFixed(1)}</span>
-          </Link>
-        ))}
-      </div>
+      <SectionTitle title={title} actionHref={products.length > 0 ? actionHref : undefined} />
+      {products.length > 0 ? (
+        <div className="scrollbar-none -mx-[18px] flex gap-3 overflow-x-auto px-[18px] pb-1">
+          {products.map((product) => (
+            <Link key={product.id} href={`/products/${product.id}`} className="soft-card relative w-[138px] shrink-0 overflow-hidden p-3">
+              <Heart className={`absolute right-2 top-2 h-5 w-5 ${heartStyle === "filled" ? "fill-[var(--accent)] text-[var(--accent)]" : "text-[var(--accent)]"}`} strokeWidth={1.8} />
+              <span className="relative mx-auto block h-[94px] w-full"><Image src={product.imageUrl} alt={product.name} fill sizes="138px" className="object-contain" /></span>
+              <span className="mt-2 block line-clamp-2 text-[12px] leading-snug text-[var(--text)]">{product.name}</span>
+              <span className="mt-2 flex items-center gap-1 text-[12px] text-[var(--star)]"><Star className="h-4 w-4 fill-[var(--star)]" strokeWidth={1.5} />{product.avgRating.toFixed(1)}</span>
+            </Link>
+          ))}
+        </div>
+      ) : (
+        <Link href={actionHref} className="soft-card flex min-h-20 items-center justify-between gap-3 px-4 text-[12px] font-normal text-[var(--muted)]">
+          <span>{emptyMessage ?? "商品を探して保存してみましょう。"}</span>
+          <ChevronRight className="h-5 w-5 shrink-0 text-[var(--accent)]" strokeWidth={1.7} />
+        </Link>
+      )}
     </section>
   );
 }
@@ -724,7 +737,7 @@ function FeatureRow({ icon: Icon, title, description }: { icon: typeof Heart; ti
   );
 }
 
-function SupportRow({ icon: Icon, label, onClick }: { icon: typeof Heart; label: string; onClick?: () => void }) {
+function SupportRow({ icon: Icon, label, onClick, href }: { icon: typeof Heart; label: string; onClick?: () => void; href?: string }) {
   const content = (
     <>
       <Icon className="h-5 w-5 text-[var(--text)]" strokeWidth={1.7} />
@@ -733,7 +746,11 @@ function SupportRow({ icon: Icon, label, onClick }: { icon: typeof Heart; label:
     </>
   );
 
-  return onClick ? (
+  return href ? (
+    <Link href={href} className="tap-target flex min-h-[56px] w-full items-center gap-4 border-b border-[var(--border)] px-5 last:border-b-0">
+      {content}
+    </Link>
+  ) : onClick ? (
     <button type="button" onClick={onClick} className="tap-target flex min-h-[56px] w-full items-center gap-4 border-b border-[var(--border)] px-5 last:border-b-0">
       {content}
     </button>
