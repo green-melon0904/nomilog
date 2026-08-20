@@ -600,6 +600,51 @@ export function saveReviewDraft(draft: ReviewDraft): Review {
 }
 
 /**
+ * Supabase未設定時の本人レビューを、投稿時と同じReview型のまま更新する。
+ *
+ * seedレビューは確認環境の共有データなので編集対象にせず、localStorageに保存したdemo-userの行だけを
+ * 変更する。本番APIと同じく作成日時は保持し、画像を変更しない更新では既存画像を失わない。
+ */
+export function updateLocalReview(reviewId: string, draft: ReviewDraft, expectedUpdatedAt: string): Review {
+  const product = products.find((item) => item.id === draft.productId);
+  const reviews = readLocalReviews();
+  const existing = reviews.find((review) => review.id === reviewId && review.userId === demoUser.userId);
+  if (!product) throw new Error("カタログから飲み物を選択してください。");
+  if (!existing) throw new Error("編集するレビューが見つかりません。");
+  if ((existing.updatedAt ?? existing.createdAt) !== expectedUpdatedAt) {
+    throw new Error("別の画面でレビューが更新されています。画面を開き直してください。");
+  }
+
+  const updated: Review = {
+    ...existing,
+    productId: product.id,
+    productName: product.name,
+    rating: draft.rating,
+    sweetness: draft.sweetness,
+    carbonation: draft.carbonation,
+    scene: draft.scene,
+    costPerformance: draft.costPerformance,
+    purchaseLocation: draft.purchaseLocation,
+    comment: draft.comment,
+    imageUrl: draft.imageDataUrl ?? (draft.removeImage ? undefined : existing.imageUrl),
+    updatedAt: new Date().toISOString()
+  };
+  const next = reviews.map((review) => review.id === reviewId ? updated : review);
+
+  try {
+    window.localStorage.setItem(reviewsKey, JSON.stringify(next));
+  } catch (error) {
+    throw new Error(
+      error instanceof DOMException && error.name === "QuotaExceededError"
+        ? "画像を含むレビューの保存容量を超えました。写真を外して更新してください。"
+        : "レビューの更新に失敗しました。もう一度お試しください。"
+    );
+  }
+  window.dispatchEvent(new Event("nomilog:reviews"));
+  return updated;
+}
+
+/**
  * 端末内レビューを削除し、同じタブの各画面へ再計算イベントを通知する。
  * storageイベントは変更元と同じタブには届かないため、独自イベントも発火してホームや詳細の
  * 件数・ランキングを削除直後に更新する。

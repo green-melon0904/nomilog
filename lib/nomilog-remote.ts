@@ -130,6 +130,33 @@ export async function saveRemoteReviewDraft(draft: ReviewDraft): Promise<void> {
 }
 
 /**
+ * 本人レビューの更新内容を認証済みRoute Handlerへ送る。
+ * reviewIdをURLやDBへ直接渡す処理はサーバーへ集約し、ブラウザ側の所有者表示を認可判定に使わない。
+ */
+export async function updateRemoteReviewDraft(reviewId: string, draft: ReviewDraft, expectedUpdatedAt: string): Promise<void> {
+  const response = await fetch("/api/reviews", {
+    method: "PATCH",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reviewId, expectedUpdatedAt, ...draft })
+  });
+  const result = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) throw new Error(result?.error ?? "レビューの更新に失敗しました。");
+}
+
+/**
+ * 本人レビューを削除し、DBで連動する集計・いいねとStorage画像の掃除をサーバーへ任せる。
+ */
+export async function deleteRemoteReview(reviewId: string): Promise<void> {
+  const response = await fetch("/api/reviews", {
+    method: "DELETE",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ reviewId })
+  });
+  const result = await response.json().catch(() => null) as { error?: string } | null;
+  if (!response.ok) throw new Error(result?.error ?? "レビューの削除に失敗しました。");
+}
+
+/**
  * Supabase行のsnake_caseを、画面共通のReview型へ変換する。
  * DBの命名規則をコンポーネントへ持ち込まないことで、localStorage由来のcamelCaseレビューと
  * 同じ一覧・集計関数を使い、保存先による表示差を作らない。

@@ -13,7 +13,7 @@ import { Home, MessageSquareText, Plus, Search, UserRound } from "lucide-react";
 const navItems = [
   { href: "/", label: "ホーム", icon: Home, activePath: "/" },
   { href: "/search", label: "さがす", icon: Search, activePath: "/search" },
-  // 中央の投稿は商品選択を求めず、飲み物名を自由に入力できるレビュー画面を開く。
+  // 中央の投稿は商品未選択のフォームを開き、利用者が仮運用カタログから飲み物を選ぶ。
   { href: "/reviews/new", label: "投稿", icon: Plus, primary: true },
   { href: "/reviews", label: "レビュー", icon: MessageSquareText, activePath: "/reviews" },
   { href: "/mypage", label: "マイページ", icon: UserRound, activePath: "/mypage" }
@@ -28,7 +28,8 @@ export function AppShell({ children }: { children: React.ReactNode }) {
   const pathname = usePathname();
   // 商品を読む画面とレビューを書く画面では、参考デザインと同じく内容へ集中できるよう
   // 下部ナビを外す。ホーム・検索・マイページではいつでも主要機能へ移動できるよう固定表示する。
-  const showBottomNav = !pathname.startsWith("/products/") && !pathname.startsWith("/reviews/new");
+  const reviewEditorOpen = pathname === "/reviews/new" || /^\/reviews\/[^/]+\/edit$/.test(pathname);
+  const showBottomNav = !pathname.startsWith("/products/") && !reviewEditorOpen;
 
   return (
     <main className={showBottomNav ? "mobile-shell" : "min-h-dvh bg-white"}>
@@ -60,7 +61,11 @@ function BottomNavItem({
   activePath?: string;
 }) {
   const pathname = usePathname();
-  const active = !primary && pathname === activePath;
+  // マイページ配下のお気に入り管理でも現在地を見失わないよう、トップ以外は子ルートも
+  // 同じナビ項目として扱う。ホームだけは全ルートのprefixになるため完全一致に限定する。
+  const active = !primary && Boolean(activePath) && (
+    activePath === "/" ? pathname === "/" : pathname === activePath || pathname.startsWith(`${activePath}/`)
+  );
 
   function guardDirtyForm(event: React.MouseEvent<HTMLAnchorElement>) {
     // 投稿フォームとナビは別コンポーネントなので、未保存状態だけsessionStorageで共有する。

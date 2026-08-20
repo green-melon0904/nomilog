@@ -9,22 +9,37 @@
 
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState } from "react";
-import { ArrowLeft, ImagePlus, Star } from "lucide-react";
-import { purchaseLocations, saveReviewDraft, sceneTags } from "@/lib/nomilog-data";
-import { canUseRemoteData, saveRemoteReviewDraft } from "@/lib/nomilog-remote";
+import { ArrowLeft, ImagePlus, Star, Trash2 } from "lucide-react";
+import { purchaseLocations, readLocalReviews, saveReviewDraft, sceneTags, updateLocalReview } from "@/lib/nomilog-data";
+import { canUseRemoteData, saveRemoteReviewDraft, updateRemoteReviewDraft } from "@/lib/nomilog-remote";
 import { isSupportedImageMimeType, maxSelectableImageBytes, prepareImageDataUrl } from "@/lib/image-upload-client";
 import { hasSupabaseEnv } from "@/lib/supabase";
 import { useNomilogProducts } from "@/components/useNomilogProducts";
-import type { CarbonationLevel, PurchaseLocation, SceneTag } from "@/lib/types";
+import type { CarbonationLevel, PurchaseLocation, ReviewDraft, SceneTag } from "@/lib/types";
 
 const maxImageBytes = 2 * 1024 * 1024;
+
+type EditableReview = {
+  id: string;
+  productId: string;
+  rating: number;
+  sweetness: number;
+  carbonation: CarbonationLevel;
+  scene: SceneTag[];
+  costPerformance: number;
+  purchaseLocation: PurchaseLocation;
+  comment: string;
+  imageUrl?: string;
+  createdAt: string;
+  updatedAt?: string;
+};
 
 /**
  * 投稿フォームの入力状態、認証状態、確認モーダルを管理する。
  * 入力体験のための即時検証は画面で行う一方、公開直前の確認と保存はサーバー・DBの検証を
  * 通す。責務を分けることで、画面を迂回したリクエストでも投稿条件を守れるようにする。
  */
-export function ReviewFormScreen() {
+export function ReviewFormScreen({ reviewId }: { reviewId?: string }) {
   const router = useRouter();
   const pathname = usePathname();
   const params = useSearchParams();
@@ -39,6 +54,8 @@ export function ReviewFormScreen() {
   const [purchaseLocation, setPurchaseLocation] = useState<PurchaseLocation | null>(null);
   const [comment, setComment] = useState("");
   const [imageDataUrl, setImageDataUrl] = useState<string | undefined>();
+  const [existingImageUrl, setExistingImageUrl] = useState<string | undefined>();
+  const [removeImage, setRemoveImage] = useState(false);
   const [imageError, setImageError] = useState("");
   const [isImagePreparing, setIsImagePreparing] = useState(false);
   const [formError, setFormError] = useState("");
@@ -46,6 +63,22 @@ export function ReviewFormScreen() {
   const [submitConfirmationOpen, setSubmitConfirmationOpen] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [editStatus, setEditStatus] = useState<"loading" | "ready" | "error">(reviewId ? "loading" : "ready");
+  const [editLoadError, setEditLoadError] = useState("");
+  const [expectedUpdatedAt, setExpectedUpdatedAt] = useState("");
+  const [initialSnapshot, setInitialSnapshot] = useState(() => reviewId ? "" : createFormSnapshot({
+    productId: initialProductId,
+    rating: 0,
+    sweetness: 3,
+    carbonation: 2,
+    costPerformance: 3,
+    scene: [],
+    purchaseLocation: null,
+    comment: "",
+    existingImageUrl: undefined,
+    imageDataUrl: undefined,
+    removeImage: false
+  }));
   const remoteEnabled = hasSupabaseEnv();
   const [authStatus, setAuthStatus] = useState<"loading" | "signed-in" | "signed-out" | "unavailable">(remoteEnabled ? "loading" : "signed-in");
   const confirmationRef = useRef<HTMLDivElement>(null);
@@ -58,9 +91,22 @@ export function ReviewFormScreen() {
   // 画面表示と送信前検証の前提をそろえ、存在しない候補が選ばれたように見える状態を防ぐ。
   const selectedProductValue = selectedProduct?.id ?? "";
 
-  // 初期値の味指標だけでは離脱確認を出さず、ユーザーが実際に変更した項目だけをdirtyとする。
-  // こうすることで、画面を開いて戻っただけの操作に不要な確認を挟まない。
-  const dirty = selectedProductId !== initialProductId || rating > 0 || comment.length > 0 || scene.length > 0 || Boolean(imageDataUrl) || isImagePreparing;
+  const currentSnapshot = createFormSnapshot({
+    productId: selectedProductId,
+    rating,
+    sweetness,
+    carbonation,
+    costPerformance,
+    scene,
+    purchaseLocation,
+    comment,
+    existingImageUrl,
+    imageDataUrl,
+    removeImage
+  });
+  // 投稿と編集のどちらも、画面を開いた時点の値と現在値を比較する。編集フォームの既存評価を
+  // 「入力中」と誤判定せず、実際に一項目でも変更した場合だけ離脱確認を出す。
+  const dirty = Boolean(initialSnapshot) && currentSnapshot !== initialSnapshot || isImagePreparing;
 
   useEffect(() => {
     // リロードやタブ閉じではAppShellの確認処理を通らないため、ブラウザ標準の離脱確認も有効にする。
@@ -90,6 +136,83 @@ export function ReviewFormScreen() {
       active = false;
     };
   }, [remoteEnabled]);
+
+  useEffect(() => {
+    if (!reviewId) return;
+    if (remoteEnabled && authStatus !== "signed-in") return;
+    let active = true;
+
+    function applyReview(review: EditableReview) {
+      if (!active) return;
+      setSelectedProductId(review.productId);
+      setRating(review.rating);
+      setSweetness(review.sweetness);
+      setCarbonation(review.carbonation);
+      setCostPerformance(review.costPerformance);
+      setScene(review.scene);
+      setPurchaseLocation(review.purchaseLocation);
+      setComment(review.comment);
+      setExistingImageUrl(review.imageUrl);
+      setImageDataUrl(undefined);
+      setRemoveImage(false);
+      setExpectedUpdatedAt(review.updatedAt ?? review.createdAt);
+      setInitialSnapshot(createFormSnapshot({
+        productId: review.productId,
+        rating: review.rating,
+        sweetness: review.sweetness,
+        carbonation: review.carbonation,
+        costPerformance: review.costPerformance,
+        scene: review.scene,
+        purchaseLocation: review.purchaseLocation,
+        comment: review.comment,
+        existingImageUrl: review.imageUrl,
+        imageDataUrl: undefined,
+        removeImage: false
+      }));
+      setEditStatus("ready");
+    }
+
+    if (!remoteEnabled) {
+      const localReview = readLocalReviews().find((review) => review.id === reviewId && review.userId === "demo-user");
+      // localStorageの読込結果も次フレームでフォームへ反映し、Effect直後の連続再描画を避ける。
+      const applyFrame = window.requestAnimationFrame(() => {
+        if (localReview) {
+          applyReview(localReview);
+        } else if (active) {
+          setEditLoadError("編集できるレビューが見つかりません。");
+          setEditStatus("error");
+        }
+      });
+      return () => {
+        active = false;
+        window.cancelAnimationFrame(applyFrame);
+      };
+    }
+
+    void fetch(`/api/reviews?reviewId=${encodeURIComponent(reviewId)}`, { cache: "no-store" })
+      .then(async (response) => ({
+        response,
+        data: await response.json().catch(() => null) as { review?: EditableReview; error?: string } | null
+      }))
+      .then(({ response, data }) => {
+        if (!active) return;
+        if (!response.ok || !data?.review) {
+          setEditLoadError(data?.error ?? "レビューを読み込めませんでした。");
+          setEditStatus("error");
+          return;
+        }
+        applyReview(data.review);
+      })
+      .catch(() => {
+        if (!active) return;
+        setEditLoadError("レビューを読み込めませんでした。");
+        setEditStatus("error");
+      });
+
+    return () => {
+      active = false;
+    };
+  }, [authStatus, remoteEnabled, reviewId]);
 
   useEffect(() => {
     if (!submitConfirmationOpen) return;
@@ -158,9 +281,11 @@ export function ReviewFormScreen() {
   async function onImageChange(file?: File) {
     const readId = ++imageReadId.current;
     setImageError("");
-    setImageDataUrl(undefined);
     setIsImagePreparing(false);
     if (!file) return;
+
+    setImageDataUrl(undefined);
+    setRemoveImage(false);
 
     // iPhoneで選ばれやすいHEICはMVPの変換対象外なので、対応形式を選択直後に検証する。
     if (!isSupportedImageMimeType(file.type)) {
@@ -185,6 +310,16 @@ export function ReviewFormScreen() {
     } finally {
       if (readId === imageReadId.current) setIsImagePreparing(false);
     }
+  }
+
+  function removeCurrentImage() {
+    // 読み込み中の画像が後から復活しないよう世代を進め、編集時は既存URLを直接消さず
+    // 保存要求へremoveImageを含める。キャンセルすればDB・Storageには何も変更されない。
+    imageReadId.current += 1;
+    setIsImagePreparing(false);
+    setImageDataUrl(undefined);
+    setRemoveImage(true);
+    setImageError("");
   }
 
   function onSubmit(event: React.FormEvent<HTMLFormElement>) {
@@ -224,11 +359,12 @@ export function ReviewFormScreen() {
     if (!selectedProduct) {
       setFormError("カタログから飲み物を選択してください。");
       setSubmitError("カタログから飲み物を選択してください。");
+      setIsSubmitting(false);
       return;
     }
 
     // 商品名は自由入力を使わず選択済みのカタログから確定し、商品IDと表示名の不整合を作らない。
-    const draft = {
+    const draft: ReviewDraft = {
       productId: selectedProduct.id,
       productName: selectedProduct.name,
       rating,
@@ -238,13 +374,22 @@ export function ReviewFormScreen() {
       costPerformance,
       purchaseLocation,
       comment: comment.trim(),
-      imageDataUrl
+      imageDataUrl,
+      removeImage
     };
 
     try {
-      // 環境変数がある場合はSupabaseへ保存し、未設定の開発環境では同じ形をlocalStorageへ保存する。
-      if (canUseRemoteData()) await saveRemoteReviewDraft(draft);
-      else saveReviewDraft(draft);
+      // 編集時も保存先の分岐をデータ層へ閉じ込め、画面は同じReviewDraftを扱う。本人判定は
+      // リモートではRoute HandlerとRLS、ローカル確認ではdemo-userの保存行に限定して行う。
+      if (reviewId) {
+        if (!expectedUpdatedAt) throw new Error("レビューの更新情報を確認できません。画面を開き直してください。");
+        if (canUseRemoteData()) await updateRemoteReviewDraft(reviewId, draft, expectedUpdatedAt);
+        else updateLocalReview(reviewId, draft, expectedUpdatedAt);
+      } else if (canUseRemoteData()) {
+        await saveRemoteReviewDraft(draft);
+      } else {
+        saveReviewDraft(draft);
+      }
 
       setSubmitted(true);
       window.sessionStorage.removeItem("nomilog.reviewFormDirty");
@@ -264,7 +409,7 @@ export function ReviewFormScreen() {
         <button type="button" onClick={goBack} aria-label="前の画面へ戻る" className="tap-target grid place-items-center">
           <ArrowLeft className="h-7 w-7" strokeWidth={1.7} />
         </button>
-        <h1 className="text-center text-[18px] leading-none">レビューを投稿</h1>
+        <h1 className="text-center text-[18px] leading-none">{reviewId ? "レビューを編集" : "レビューを投稿"}</h1>
         {/* プレビューを置かない代わりに余白を確保し、タイトルだけは画面の中央に揃える。 */}
         <span aria-hidden="true" />
       </header>
@@ -278,11 +423,18 @@ export function ReviewFormScreen() {
         </section>
       ) : remoteEnabled && authStatus === "signed-out" ? (
         <section className="border-b border-[var(--border)] py-8 text-center">
-          <p className="text-[15px]">レビュー投稿にはログインが必要です</p>
+          <p className="text-[15px]">レビュー{reviewId ? "編集" : "投稿"}にはログインが必要です</p>
           <p className="mt-2 text-[12px] font-normal text-[var(--muted)]">メールへ届く6桁コードで、安全にログインできます。</p>
           <button type="button" onClick={startSignIn} className="tap-target mt-4 inline-flex items-center rounded-[8px] bg-[var(--accent)] px-4 text-[13px] !text-white">
-            ログインして投稿する
+            ログインして{reviewId ? "編集する" : "投稿する"}
           </button>
+        </section>
+      ) : reviewId && editStatus === "loading" ? (
+        <div className="py-10 text-center text-[13px] text-[var(--muted)]">レビューを読み込んでいます。</div>
+      ) : reviewId && editStatus === "error" ? (
+        <section className="py-10 text-center">
+          <p role="alert" className="text-[14px] text-[var(--danger)]">{editLoadError}</p>
+          <button type="button" onClick={goBack} className="tap-target mt-5 rounded-[8px] border border-[var(--accent)] px-5 text-[13px] text-[var(--accent)]">前の画面へ戻る</button>
         </section>
       ) : (
         <form onSubmit={onSubmit} className="pt-5">
@@ -364,7 +516,7 @@ export function ReviewFormScreen() {
             </div>
           </Field>
 
-          <Field label="写真を追加（任意）" className="pt-6">
+          <Field label={reviewId ? "写真を変更（任意）" : "写真を追加（任意）"} className="pt-6">
             <label className={`tap-target flex min-h-[80px] cursor-pointer items-center justify-center gap-2 rounded-[12px] border border-dashed border-[#b9bec5] text-[16px] text-[var(--accent)] ${isImagePreparing ? "pointer-events-none opacity-60" : ""}`}>
               <ImagePlus className="h-6 w-6" strokeWidth={1.7} /> {isImagePreparing ? "画像を準備中…" : "写真を選ぶ"}
               <input type="file" accept="image/jpeg,image/png,image/webp" disabled={isImagePreparing} className="sr-only" onChange={(event) => {
@@ -374,17 +526,21 @@ export function ReviewFormScreen() {
               }} />
             </label>
             {imageError ? <p className="mt-2 text-[12px] text-[var(--danger)]">{imageError}</p> : null}
-            {imageDataUrl ? (
-              // 選択したローカル画像はData URLのまま即時表示する。まだ公開URLがなく、Next Imageへ
-              // 渡すと最適化サーバー経由の変換を待つため、投稿前プレビューでは通常のimgを使う。
-              // eslint-disable-next-line @next/next/no-img-element
-              <img src={imageDataUrl} alt="写真プレビュー" className="mt-3 h-40 w-full rounded-[10px] object-cover" />
+            {imageDataUrl || (existingImageUrl && !removeImage) ? (
+              <div className="relative mt-3">
+                {/* Data URLと既存Storage URLを同じプレビューへ表示し、保存前に削除対象も確認できるようにする。 */}
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={imageDataUrl ?? existingImageUrl} alt="レビュー写真のプレビュー" className="h-40 w-full rounded-[10px] object-cover" />
+                <button type="button" onClick={removeCurrentImage} className="tap-target absolute right-2 top-2 inline-flex items-center gap-1 rounded-full bg-white/95 px-3 text-[12px] text-[var(--danger)] shadow-sm">
+                  <Trash2 className="h-4 w-4" strokeWidth={1.8} />写真を削除
+                </button>
+              </div>
             ) : null}
           </Field>
 
           {formError ? <p id="review-form-error" role="alert" className="mt-4 rounded-[8px] bg-[#fff3f3] p-3 text-[12px] text-[var(--danger)]">{formError}</p> : null}
           <button type="button" onClick={requestSubmitConfirmation} disabled={isImagePreparing} aria-describedby={formError ? "review-form-error" : undefined} className="tap-target mt-7 min-h-[54px] w-full rounded-[12px] bg-[var(--accent)] px-4 text-[18px] !text-white shadow-[0_6px_14px_rgba(42,155,225,0.18)] disabled:opacity-60">
-            投稿する
+            {reviewId ? "変更を保存" : "投稿する"}
           </button>
         </form>
         )}
@@ -392,9 +548,11 @@ export function ReviewFormScreen() {
         <div ref={confirmationRef} className="fixed inset-0 z-50 grid place-items-end bg-black/30" role="dialog" aria-modal="true" aria-busy={isSubmitting} aria-labelledby="submit-confirmation-title" aria-describedby="submit-confirmation-description">
           <section className="mx-auto w-full max-w-[460px] rounded-t-[8px] bg-white px-[18px] pt-6 pb-[calc(18px+env(safe-area-inset-bottom))]">
             <div className="mx-auto max-w-[424px]">
-              <h2 id="submit-confirmation-title" className="text-center text-[17px]">レビューを投稿しますか？</h2>
+              <h2 id="submit-confirmation-title" className="text-center text-[17px]">レビューを{reviewId ? "更新" : "投稿"}しますか？</h2>
               <p id="submit-confirmation-description" className="mt-2 text-center text-[13px] font-normal leading-relaxed text-[var(--muted)]">
-                {selectedProduct ? `「${selectedProduct.name}」のレビューとして投稿します。投稿するとレビューが公開されます。` : "投稿するとレビューが公開されます。"}
+                {selectedProduct
+                  ? `「${selectedProduct.name}」のレビューとして${reviewId ? "更新" : "投稿"}します。内容は公開されます。`
+                  : `内容を${reviewId ? "更新" : "投稿"}するとレビューが公開されます。`}
               </p>
               {submitError ? <p role="alert" className="mt-3 rounded-[8px] bg-[#fff3f3] p-3 text-[12px] text-[var(--danger)]">{submitError}</p> : null}
               <div className="mt-5 grid grid-cols-2 gap-3">
@@ -402,7 +560,7 @@ export function ReviewFormScreen() {
                   キャンセル
                 </button>
                 <button type="button" disabled={isSubmitting} onClick={confirmAndSubmit} className="tap-target rounded-[8px] bg-[var(--accent)] text-[14px] !text-white disabled:cursor-wait disabled:opacity-60">
-                  {isSubmitting ? "投稿中..." : "投稿する"}
+                  {isSubmitting ? (reviewId ? "更新中..." : "投稿中...") : (reviewId ? "更新する" : "投稿する")}
                 </button>
               </div>
             </div>
@@ -456,4 +614,24 @@ function ChoiceButton({ active, onClick, children }: { active: boolean; onClick:
       {children}
     </button>
   );
+}
+
+/**
+ * フォームの意味のある保存値だけを安定した文字列へ変換し、初期状態との比較に使う。
+ * 画面制御用のエラーやモーダル状態は含めず、同じシーン集合は選択順に左右されないよう並べ替える。
+ */
+function createFormSnapshot(values: {
+  productId: string;
+  rating: number;
+  sweetness: number;
+  carbonation: CarbonationLevel;
+  costPerformance: number;
+  scene: SceneTag[];
+  purchaseLocation: PurchaseLocation | null;
+  comment: string;
+  existingImageUrl?: string;
+  imageDataUrl?: string;
+  removeImage: boolean;
+}) {
+  return JSON.stringify({ ...values, scene: [...values.scene].sort() });
 }

@@ -122,4 +122,6 @@ export type ReviewDraft = {
   purchaseLocation: PurchaseLocation;
   comment: string;
   imageDataUrl?: string;
+  // 編集時だけ使う。新しい画像と同時に指定する曖昧な要求はAPI側で拒否する。
+  removeImage?: boolean;
 };
