@@ -24,6 +24,8 @@ const categoryStyles = [
   "bg-[#f2f3f5] text-[#666b72]"
 ];
 
+const RANKING_PLACEHOLDER_COUNT = 5;
+
 /**
  * 同じレビュー配列からランキングと新着欄を作り、画面間で数値を揃える。
  * 表示ごとに別のデータ取得や集計を行うと、投稿直後に件数・平均値が食い違うため、
@@ -70,36 +72,43 @@ export function HomeScreen() {
       <section className="mt-6">
         <SectionTitle title="今週のランキング" icon={<Crown className="h-5 w-5 fill-[var(--star)] text-[var(--star)]" strokeWidth={1.7} />} />
         <div className="scrollbar-none -mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
-          {ranking.map((product, index) => (
-            <Link
-              href={`/products/${product.id}`}
-              key={product.id}
-              className="relative w-[82px] shrink-0 border-r border-[var(--border)] px-1.5 last:border-r-0"
-            >
-              <span
-                className={`absolute left-0 top-0 z-10 grid h-6 w-6 place-items-center rounded-full text-[12px] font-semibold ${
-                  index === 0
-                    ? "bg-[var(--star)] text-white"
-                    : index === 1
-                      ? "bg-[#bfc3c8] text-white"
-                      : index === 2
-                        ? "bg-[#b86c28] text-white"
-                        : "bg-[#d5d7da] text-[var(--text)]"
-                }`}
+          {ranking.length > 0 ? (
+            ranking.map((product, index) => (
+              <Link
+                href={`/products/${product.id}`}
+                key={product.id}
+                className="relative w-[82px] shrink-0 border-r border-[var(--border)] px-1.5 last:border-r-0"
               >
-                {index + 1}
-              </span>
-              <span className="relative block h-[112px]">
-                <Image src={product.imageUrl} alt={product.name} fill sizes="82px" className="object-contain" />
-              </span>
-              <span className="line-clamp-2 min-h-10 text-[12px] leading-[1.45]">{product.name}</span>
-              <span className="mt-1 flex items-center justify-center gap-1 text-[13px] text-[var(--star)]">
-                <Star className="h-3.5 w-3.5 fill-[var(--star)]" strokeWidth={1.5} aria-hidden="true" />
-                {product.avgRating.toFixed(1)}
-              </span>
-            </Link>
-          ))}
+                <span
+                  className={`absolute left-0 top-0 z-10 grid h-6 w-6 place-items-center rounded-full text-[12px] font-semibold ${
+                    index === 0
+                      ? "bg-[var(--star)] text-white"
+                      : index === 1
+                        ? "bg-[#bfc3c8] text-white"
+                        : index === 2
+                          ? "bg-[#b86c28] text-white"
+                          : "bg-[#d5d7da] text-[var(--text)]"
+                  }`}
+                >
+                  {index + 1}
+                </span>
+                <span className="relative block h-[112px]">
+                  <Image src={product.imageUrl} alt={product.name} fill sizes="82px" className="object-contain" />
+                </span>
+                <span className="line-clamp-2 min-h-10 text-[12px] leading-[1.45]">{product.name}</span>
+                <span className="mt-1 flex items-center justify-center gap-1 text-[13px] text-[var(--star)]">
+                  <Star className="h-3.5 w-3.5 fill-[var(--star)]" strokeWidth={1.5} aria-hidden="true" />
+                  {product.avgRating.toFixed(1)}
+                </span>
+              </Link>
+            ))
+          ) : (
+            <WeeklyRankingPlaceholder />
+          )}
         </div>
+        {ranking.length === 0 ? (
+          <p className="mt-2 text-center text-[12px] font-normal text-[var(--muted)]">今週のランキングはまだありません</p>
+        ) : null}
       </section>
 
       <section className="mt-6">
@@ -135,6 +144,30 @@ export function HomeScreen() {
         </div>
       </section>
     </div>
+  );
+}
+
+/**
+ * 今週の対象レビューがない場合も、ランキング欄の占有領域と横スクロールの手掛かりを残す。
+ * これは読み込み状態ではないためアニメーションは付けず、通信中だと誤解させない静的な表示にする。
+ */
+function WeeklyRankingPlaceholder() {
+  return (
+    <>
+      {Array.from({ length: RANKING_PLACEHOLDER_COUNT }, (_, index) => (
+        <span
+          key={index}
+          aria-hidden="true"
+          className="relative w-[82px] shrink-0 border-r border-[var(--border)] px-1.5 last:border-r-0"
+        >
+          <span className="absolute left-0 top-0 z-10 h-6 w-6 rounded-full bg-[#d5d7da]" />
+          <span className="my-1 block h-[104px] rounded-[6px] bg-[var(--surface-soft)]" />
+          <span className="mt-2 block h-3 rounded-[3px] bg-[#e1e4e8]" />
+          <span className="mt-2 block h-3 w-3/4 rounded-[3px] bg-[#e8eaed]" />
+          <span className="mx-auto mt-3 block h-3 w-10 rounded-[3px] bg-[#e1e4e8]" />
+        </span>
+      ))}
+    </>
   );
 }
 
