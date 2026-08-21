@@ -118,6 +118,19 @@ async function updateLike(request: NextRequest, shouldLike: boolean) {
     const supabase = createWorkOSSupabaseClient(auth.accessToken);
     await ensureProfile(supabase, auth.user.id, auth.user.email, auth.user.firstName, auth.user.lastName);
 
+    const { data: review, error: reviewError } = await supabase
+      .from("reviews")
+      .select("id,user_id,is_hidden")
+      .eq("id", reviewId)
+      .maybeSingle();
+    if (reviewError) throw reviewError;
+    if (!review || review.is_hidden) {
+      return NextResponse.json({ error: "いいねできるレビューが見つかりません。" }, { status: 404 });
+    }
+    if (review.user_id === auth.user.id) {
+      return NextResponse.json({ error: "自分のレビューにはいいねできません。" }, { status: 400 });
+    }
+
     if (shouldLike) {
       // 複合主キーで重複を防ぎ、連続タップや再送があっても1件だけ保持する。
       const { error } = await supabase.from("review_likes").upsert(

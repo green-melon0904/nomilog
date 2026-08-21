@@ -12,6 +12,7 @@ import Image from "next/image";
 import Link from "next/link";
 import {
   Bell,
+  BellRing,
   CalendarDays,
   ChevronRight,
   CircleHelp,
@@ -22,7 +23,9 @@ import {
   Mail,
   MessageSquareMore,
   Pencil,
+  ShieldCheck,
   Star,
+  Trash2,
   UserRound,
   X
 } from "lucide-react";
@@ -52,6 +55,7 @@ type AuthUser = {
   bio: string;
   avatarUrl?: string;
   createdAt?: string;
+  isAdmin?: boolean;
 };
 
 /**
@@ -232,6 +236,7 @@ export function MyPageScreen() {
           myReviews={myReviews}
           favoriteProducts={favoriteProducts}
           allProducts={allProducts}
+          isAdmin={remoteUser?.isAdmin ?? false}
           onProfileSaved={saveProfile}
         />
       ) : (
@@ -321,9 +326,9 @@ function SignedOutMyPage({
       <section className="pt-6">
         <SectionTitle title="サポート・その他" />
         <div className="soft-card overflow-hidden">
-          <SupportRow icon={CircleHelp} label="ヘルプ" />
-          <SupportRow icon={Mail} label="お問い合わせ" />
-          <SupportRow icon={FileText} label="利用規約" />
+          <SupportRow icon={CircleHelp} label="ヘルプ・お問い合わせ" href="/contact" />
+          <SupportRow icon={FileText} label="利用規約" href="/terms" />
+          <SupportRow icon={ShieldCheck} label="プライバシーポリシー" href="/privacy" />
         </div>
       </section>
     </div>
@@ -338,6 +343,7 @@ function SignedInMyPage({
   myReviews,
   favoriteProducts,
   allProducts,
+  isAdmin,
   onProfileSaved
 }: {
   profileName: string;
@@ -347,6 +353,7 @@ function SignedInMyPage({
   myReviews: Review[];
   favoriteProducts: ProductWithStats[];
   allProducts: ProductWithStats[];
+  isAdmin: boolean;
   onProfileSaved: (profile: ProfileUpdateInput) => Promise<void>;
 }) {
   const [profileEditorOpen, setProfileEditorOpen] = useState(false);
@@ -429,13 +436,25 @@ function SignedInMyPage({
         <SectionTitle title="設定" />
         <div className="soft-card overflow-hidden">
           <SupportRow icon={UserRound} label="プロフィール編集" onClick={() => setProfileEditorOpen(true)} />
-          <SupportRow icon={Bell} label="通知設定" />
+          <SupportRow icon={Bell} label="通知" href="/mypage/notifications" />
+          <SupportRow icon={BellRing} label="通知設定" href="/mypage/notification-settings" />
           <SupportRow icon={Heart} label="お気に入り管理" href="/mypage/favorites" />
+          <SupportRow icon={Trash2} label="アカウント管理" href="/mypage/account" />
+          {isAdmin ? <SupportRow icon={ShieldCheck} label="運営管理" href="/admin/moderation" /> : null}
           <Link href="/sign-out" className="tap-target flex items-center gap-4 border-b-0 px-5 text-[15px] text-[var(--text)]">
             <LogOut className="h-5 w-5 text-[var(--text)]" strokeWidth={1.7} />
             <span className="flex-1">ログアウト</span>
             <ChevronRight className="h-5 w-5" strokeWidth={1.7} />
           </Link>
+        </div>
+      </section>
+
+      <section className="pt-6">
+        <SectionTitle title="サポート・その他" />
+        <div className="soft-card overflow-hidden">
+          <SupportRow icon={Mail} label="お問い合わせ" href="/contact" />
+          <SupportRow icon={FileText} label="利用規約" href="/terms" />
+          <SupportRow icon={ShieldCheck} label="プライバシーポリシー" href="/privacy" />
         </div>
       </section>
     </div>

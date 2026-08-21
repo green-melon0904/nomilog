@@ -23,11 +23,14 @@
 
 `.env.local`に、同じWorkOS環境かつ同じApplicationの値を設定します。`WORKOS_CLIENT_ID`はRedirect URIを登録したApplicationのCredentialsからコピーし、`WORKOS_API_KEY`は同じStagingまたはProduction環境で作成します。`WORKOS_COOKIE_PASSWORD`には32文字以上のランダム文字列を使います。
 
+お問い合わせの保存には、Supabase Dashboardの`Project Settings` → `API Keys`にある`service_role`キーも設定します。このキーはRLSを迂回できるため、サーバー専用の`SUPABASE_SERVICE_ROLE_KEY`へ入れ、`NEXT_PUBLIC_`を付けたりGitへコミットしたりしないでください。のみログでは問い合わせ専用RPCにだけ使用します。
+
 ```env
 WORKOS_CLIENT_ID=client_...
 WORKOS_API_KEY=sk_...
 WORKOS_COOKIE_PASSWORD=32文字以上のランダム値
 NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://127.0.0.1:3008/auth/callback
+SUPABASE_SERVICE_ROLE_KEY=service_roleキー
 ```
 
 ## 3. Supabase Third-Party Auth
@@ -48,3 +51,24 @@ https://api.workos.com/user_management/<WORKOS_CLIENT_ID>
 2. WorkOSの画面でメールアドレスと6桁コードを入力する。
 3. `/mypage`または投稿開始時の`/reviews/new`へ戻ることを確認する。
 4. ログアウト後、投稿APIが401となり保存できないことを確認する。
+
+## 6. 初回管理者の登録
+
+レビュー通報と問い合わせを処理する運営画面は、`public.app_admins`へ登録したWorkOS User IDだけが利用できます。WorkOS Dashboardの`Users`で自分の`user_...`形式のIDを確認し、Supabase SQL Editorで次を一度だけ実行します。
+
+```sql
+insert into public.app_admins (user_id, display_name)
+values ('user_...', '運営')
+on conflict (user_id) do update
+set display_name = excluded.display_name;
+```
+
+登録後にのみログへログインし直すと、マイページの設定に`運営管理`が表示されます。ブラウザ側の表示だけでは権限を決めず、管理APIとRLSも同じテーブルを確認します。担当から外れたアカウントは、次のSQLで権限を解除します。
+
+```sql
+delete from public.app_admins where user_id = 'user_...';
+```
+
+## 7. 公開前の文書確認
+
+`/terms`と`/privacy`にはMVP用の利用規約・プライバシーポリシーを実装しています。本番公開前に、運営者情報、連絡先、管轄、実際に利用する外部サービスと保存期間を運用実態に合わせ、必要に応じて専門家の確認を受けてください。

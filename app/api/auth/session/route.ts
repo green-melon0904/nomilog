@@ -6,6 +6,7 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 import { NextResponse } from "next/server";
 import { defaultProfileBio, type ProfileView } from "@/lib/profile";
 import { createWorkOSSupabaseClient } from "@/lib/supabase-server";
+import { isNomilogAdmin } from "@/lib/supabase-user";
 import { hasWorkOSAuthConfig } from "@/lib/workos";
 
 /**
@@ -44,6 +45,21 @@ async function readProfile(accessToken: string, userId: string, fallbackName: st
 }
 
 /**
+ * マイページへ運営導線を表示するため、JWT subject自身の管理者登録だけを返す。
+ * この値は表示制御にしか使わず、管理APIは操作ごとに同じ登録を再検証する。
+ */
+async function readAdminStatus(accessToken: string, userId: string) {
+  if (!process.env.NEXT_PUBLIC_SUPABASE_URL || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY) return false;
+  try {
+    return await isNomilogAdmin(createWorkOSSupabaseClient(accessToken), userId);
+  } catch (error) {
+    // migration適用前や一時的なDB障害では、権限を広げず通常ユーザーとして表示する。
+    console.error("[auth/session] admin lookup failed", error);
+    return false;
+  }
+}
+
+/**
  * WorkOSのセッションを確認し、表示に必要なユーザー情報だけを返す。
  * クライアントはログイン状態と表示名だけが必要で、アクセストークンやCookieの値は不要なので、
  * 最小限のレスポンスに限定して認証情報の露出範囲を抑える。
@@ -56,11 +72,14 @@ export async function GET() {
   try {
     const { user, accessToken } = await withAuth();
     const fallbackName = user ? [user.firstName, user.lastName].filter(Boolean).join(" ") || user.email.split("@")[0] || "のみログユーザー" : "";
-    const profile = user
+    const [profile, isAdmin] = user
       ? accessToken
-        ? await readProfile(accessToken, user.id, fallbackName)
-        : { name: fallbackName, bio: defaultProfileBio }
-      : null;
+        ? await Promise.all([
+            readProfile(accessToken, user.id, fallbackName),
+            readAdminStatus(accessToken, user.id)
+          ])
+        : [{ name: fallbackName, bio: defaultProfileBio }, false]
+      : [null, false];
 
     return NextResponse.json({
       configured: true,
@@ -71,7 +90,8 @@ export async function GET() {
         name: profile?.name ?? fallbackName,
         bio: profile?.bio ?? defaultProfileBio,
         avatarUrl: profile?.avatarUrl,
-        createdAt: user.createdAt
+        createdAt: user.createdAt,
+        isAdmin
       } : null
     });
   } catch (error) {

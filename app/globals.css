@@ -37,13 +37,6 @@ body {
   -webkit-font-smoothing: antialiased;
 }
 
-button,
-input,
-textarea,
-select {
-  font: inherit;
-}
-
 button {
   cursor: pointer;
 }
