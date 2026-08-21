@@ -13,6 +13,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { RatingStars } from "@/components/RatingStars";
 import { ScoreMeter } from "@/components/ScoreMeter";
 import { ReviewLikeButton } from "@/components/ReviewLikeButton";
+import { ReviewReportButton } from "@/components/ReviewReportButton";
 import { FavoriteButton } from "@/components/FavoriteButton";
 import {
   carbonationLabels,
@@ -159,6 +160,7 @@ export function ProductDetailScreen({ productId }: { productId: string }) {
                 <div className="flex items-center gap-1">
                   <RatingStars value={review.rating} />
                   <ReviewLikeButton reviewId={review.id} initialCount={review.likeCount} />
+                  <ReviewReportButton reviewId={review.id} />
                 </div>
               </div>
               <p className="mt-2 text-[13px] font-normal leading-[1.65]">{review.comment}</p>

@@ -7,8 +7,9 @@ const contentSecurityPolicy = [
   "frame-ancestors 'none'",
   "form-action 'self' https://api.workos.com",
   "img-src 'self' data: https:",
-  "font-src 'self' data:",
-  "style-src 'self' 'unsafe-inline'",
+  // IBM Plex Sans JPのCSSとフォント本体だけを許可し、任意の外部スタイル配信元は追加しない。
+  "font-src 'self' data: https://fonts.gstatic.com",
+  "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com",
   `script-src 'self' 'unsafe-inline'${process.env.NODE_ENV === "development" ? " 'unsafe-eval'" : ""}`,
   "connect-src 'self' https://*.supabase.co https://api.workos.com"
 ].join("; ");

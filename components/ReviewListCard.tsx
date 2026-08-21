@@ -7,6 +7,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { RatingStars } from "@/components/RatingStars";
 import { ReviewLikeButton } from "@/components/ReviewLikeButton";
+import { ReviewReportButton } from "@/components/ReviewReportButton";
 import { formatDate } from "@/lib/nomilog-data";
 import type { Product, Review } from "@/lib/types";
 
@@ -27,7 +28,7 @@ export function ReviewListCard({ review, product }: ReviewListCardProps) {
       <Link href={`/products/${product.id}`} aria-label={`${productName}の商品詳細`} className="relative block h-[96px] overflow-hidden rounded-[6px] bg-[var(--surface-soft)]">
         <Image src={product.imageUrl} alt={product.name} fill sizes="76px" className="object-contain" />
       </Link>
-      <span className="min-w-0 py-0.5">
+      <div className="min-w-0 py-0.5">
         <Link href={`/products/${product.id}`} className="block min-w-0">
           <span className="block truncate text-[14px]">{productName}</span>
           <span className="mt-1 flex items-center gap-2">
@@ -36,14 +37,15 @@ export function ReviewListCard({ review, product }: ReviewListCardProps) {
           </span>
           <span className="mt-1.5 line-clamp-2 block text-[12px] font-normal leading-[1.5] text-[#3d4147]">{review.comment}</span>
         </Link>
-        <span className="mt-2 flex min-h-[44px] items-center justify-between gap-2 text-[11px] text-[var(--muted)]">
+        <div className="mt-2 flex min-h-[44px] items-center justify-between gap-2 text-[11px] text-[var(--muted)]">
           <span>{review.userName}</span>
-          <span className="flex items-center gap-1">
+          <div className="flex items-center gap-1">
             <span>{formatDate(review.createdAt)}</span>
             <ReviewLikeButton reviewId={review.id} initialCount={review.likeCount} />
-          </span>
-        </span>
-      </span>
+            <ReviewReportButton reviewId={review.id} />
+          </div>
+        </div>
+      </div>
     </article>
   );
 }

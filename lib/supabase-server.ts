@@ -1,9 +1,9 @@
 /**
  * WorkOSのアクセストークンをSupabaseへ渡すサーバーClient。
  *
- * service_roleを使うとRLSを迂回できるため、このアプリでは公開キーとThird-Party Authの
- * JWTを組み合わせる。保存処理もDBポリシーの本人確認を通るので、Route Handlerのバグだけで
- * 他ユーザーのデータを変更できない。
+ * ユーザー所有データでは、公開キーとThird-Party AuthのJWTを組み合わせて必ずRLSを通す。
+ * service_roleは問い合わせ専用の隔離されたClientだけに限定し、ここでは使わない。これにより、
+ * Route Handlerのバグだけで他ユーザーのデータを変更できる経路を作らない。
  */
 import { createClient } from "@supabase/supabase-js";
 
