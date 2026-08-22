@@ -15,6 +15,9 @@ const contentSecurityPolicy = [
 ].join("; ");
 
 const nextConfig: NextConfig = {
+  // 開発ルールは既存のAGENT.mdを正本として管理する。Next.jsが別名のルールファイルを
+  // 自動生成すると同じプロジェクト内に異なる指示元ができるため、生成機能だけを止める。
+  agentRules: false,
   // Codex内ブラウザは127.0.0.1で開くため、開発時のHMR接続も同じローカルオリジンだけ許可する。
   // 本番で外部オリジンを許可する設定ではなく、ローカル開発用の接続不整合を防ぐ目的に限定している。
   allowedDevOrigins: ["127.0.0.1"],

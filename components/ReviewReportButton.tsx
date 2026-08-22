@@ -56,6 +56,7 @@ export function ReviewReportButton({ reviewId }: { reviewId: string }) {
       });
       const result = await response.json().catch(() => null) as { error?: string } | null;
       if (response.status === 401) {
+        // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- WorkOSへ一度だけ遷移させ、PKCE Cookieの重複生成を防ぐ。
         window.location.assign(`/sign-in?next=${encodeURIComponent(window.location.pathname)}`);
         return;
       }

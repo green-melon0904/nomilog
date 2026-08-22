@@ -275,6 +275,7 @@ export function ReviewFormScreen({ reviewId }: { reviewId?: string }) {
     // 正規化するため、ここで任意の外部URLをreturnToとして成立させることはできない。
     const query = params.toString();
     const returnTo = `${pathname}${query ? `?${query}` : ""}`;
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- WorkOSへ一度だけ遷移させ、PKCE Cookieの重複生成を防ぐ。
     window.location.assign(`/sign-in?next=${encodeURIComponent(returnTo)}`);
   }
 

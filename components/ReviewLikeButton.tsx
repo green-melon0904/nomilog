@@ -89,6 +89,7 @@ export function ReviewLikeButton({ reviewId, initialCount = 0 }: ReviewLikeButto
     if (authConfigured === true && !authenticated) {
       // 認証後に元のレビューへ戻せるよう、現在のアプリ内パスだけをreturnToへ渡す。
       const returnTo = `${window.location.pathname}${window.location.search}`;
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- WorkOSへ一度だけ遷移させ、PKCE Cookieの重複生成を防ぐ。
       window.location.assign(`/sign-in?next=${encodeURIComponent(returnTo)}`);
       return;
     }

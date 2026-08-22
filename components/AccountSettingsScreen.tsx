@@ -28,6 +28,8 @@ export function AccountSettingsScreen() {
       });
       const result = await response.json().catch(() => null) as { error?: string } | null;
       if (!response.ok) throw new Error(result?.error ?? "アカウントを削除できませんでした。");
+      // Route HandlerでCookie削除とWorkOSログアウトを一度だけ行うため、RSC遷移ではなく文書遷移を使う。
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 認証Route Handlerは通常のNext.jsページではない。
       window.location.assign("/sign-out");
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "アカウントを削除できませんでした。");
