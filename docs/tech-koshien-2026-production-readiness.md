@@ -15,20 +15,20 @@
 
 **No-Go: 現時点では本番公開しない。**
 
-アプリの主要機能、認証境界、RLS、モバイルUI、本番ビルド、Vercel公開先、運営情報は整った。一方で、仮商品・仮レビューが残り、WorkOS Dashboardの本番URL、運営権限、お問い合わせ保存用キーが未設定である。下記の残りのP0を完了してから一般公開へ切り替える。
+アプリの主要機能、認証境界、RLS、モバイルUI、本番ビルド、Vercel公開先、運営情報は整った。一方で、仮商品・仮レビューが残り、WorkOS Production環境、運営権限、お問い合わせ保存用キーが未設定である。下記の残りのP0を完了してから一般公開へ切り替える。
 
 ## 確認済みの現状
 
 | 項目 | 現状 | 判定 |
 | --- | --- | --- |
 | GitHub | `green-melon0904/nomilog`、private、既定ブランチは`main` | 良好 |
-| デプロイ | `kento-dev/nomilog`へprivate GitHubリポジトリを接続済み。公開URLは`https://nomilog-eight.vercel.app` | WorkOS設定後に回帰確認 |
+| デプロイ | `kento-dev/nomilog`へprivate GitHubリポジトリを接続済み。公開URLは`https://nomilog-eight.vercel.app` | PreviewとProductionの応答確認済み |
 | ローカルビルド | Next.jsの本番ビルド31ページ成功 | 良好 |
 | Supabase | 商品20件、レビュー6件、デモプロフィール6件 | 仮データのため公開不可 |
 | 投稿対象商品 | 20件すべて仮商品。酒類4件を含む | 要差し替え・方針決定 |
 | Review Storage | 保存画像0件 | 良好 |
 | 運営権限 | `app_admins`は0件 | 通報対応不可 |
-| WorkOS | Vercel Productionの秘密値とRedirect URIを登録済み | Dashboardの本番URL設定が必要 |
+| WorkOS | StagingへVercel公開URLを登録し、SupabaseのIssuer一致とHosted UIへの遷移を確認済み | 一般公開前にProductionへ切替必須 |
 | お問い合わせ | `SUPABASE_SERVICE_ROLE_KEY`がローカルでも未設定 | 送信不可 |
 | 法務文書 | 運営主体、連絡先、制定日、更新日、保存期間を反映済み | 保護者または学校の確認待ち |
 | 依存パッケージ | 開発依存を含む`npm audit` 0件 | 良好 |
@@ -51,23 +51,32 @@
 ### 2. 公開先を作る
 
 - [x] Vercelへprivate GitHubリポジトリを接続する。
-- [ ] Preview環境でビルドと主要画面を確認する。
+- [x] Preview環境でビルドと主要画面を確認する。
 - [x] Production環境へ昇格し、HTTPSの公開URLを取得する。
 - [x] 公開URLにVercelのPassword Protectionなど、審査員を遮る制限がないことを確認する。
 - [ ] カスタムドメインを使う場合は所有権とDNSを確認する。期限優先のため、取得できない場合は`vercel.app` URLで提出する。
 
-2026-08-22にVercel Hobbyの`kento-dev/nomilog`を作成してGitHubのprivateリポジトリへ接続した。初回Productionは31ルートのビルドに成功し、`https://nomilog-eight.vercel.app`が認証なしでHTTP 200を返すことを確認した。GitHub連携時の`COMMIT_AUTHOR_REQUIRED`は、リポジトリのコミット作者をGitHub発行のnoreplyメールへ変更して解消する。
+2026-08-22にVercel Hobbyの`kento-dev/nomilog`を作成してGitHubのprivateリポジトリへ接続した。初回Productionは31ルートのビルドに成功し、`https://nomilog-eight.vercel.app`が認証なしでHTTP 200を返すことを確認した。Previewでもホーム、利用規約、プライバシーポリシー、マイページがHTTP 200を返した。GitHub連携時の`COMMIT_AUTHOR_REQUIRED`は、リポジトリのコミット作者をGitHub発行のnoreplyメールへ変更して解消した。
 
 ### 3. 本番環境変数とWorkOSを設定する
 
 - [x] Vercel ProductionへSupabaseのURLと公開キーを設定する。
 - [ ] `SUPABASE_SERVICE_ROLE_KEY`をサーバー専用変数として設定する。
-- [x] WorkOSのClient ID、API Key、64文字以上を推奨するCookie PasswordをProductionへ設定する。
+- [x] WorkOS StagingのClient ID、API Key、64文字以上を推奨するCookie PasswordをVercel Productionへ設定する。
 - [x] `NEXT_PUBLIC_WORKOS_REDIRECT_URI`を本番URLの`/auth/callback`へ変更する。
-- [ ] WorkOS Dashboardへ本番Redirect URI、Sign-in endpoint、Sign-out redirectを登録する。
-- [ ] Supabase Third-Party AuthのIssuerが、使用するWorkOS環境のClient IDと一致することを確認する。
+- [x] WorkOS Stagingへ本番Redirect URI、Sign-in endpoint、Sign-out redirect、App homepageを登録する。
+- [x] Supabase Third-Party AuthのIssuerが、現在使用するWorkOS StagingのClient IDと一致することを確認する。
+- [ ] WorkOS Productionを有効化し、Production用Client ID、API Key、Redirect URI、画面設定を新規作成する。
+- [ ] VercelのWorkOS環境変数とSupabaseのIssuerをProduction用へ切り替え、認証を再検証する。
 
 秘密値はGitHub、提出用ソース、README、スクリーンショットへ含めない。PreviewとProductionでCookie Passwordを分け、漏えい時に片方だけを失効できるようにする。
+
+2026-08-22にWorkOS Stagingの「のみログ」アプリへVercel公開URLを登録し、公開URLのサインイン導線からWorkOS Hosted UIへ正常に遷移することを確認した。Supabase Third-Party Authは有効で、Issuer URLのClient IDも同じStagingアプリと一致している。Stagingは安全な動作確認には利用できるが、WorkOSの案内では顧客向けトラフィックを扱う環境ではない。Productionの有効化には支払い情報の登録が必要なため、無料のまま進める現在はテスト用途に限定し、応募URLを一般公開する前にProductionへ切り替える。
+
+WorkOS公式資料:
+
+- <https://workos.com/docs/authkit/environments>
+- <https://workos.com/docs/dashboard/billing>
 
 #### PreviewとProductionのデータ境界
 
