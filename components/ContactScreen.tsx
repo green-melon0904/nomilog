@@ -3,6 +3,7 @@
 import { CheckCircle2, Send } from "lucide-react";
 import { useState } from "react";
 import { MobilePageHeader } from "@/components/MobilePageHeader";
+import { publicContactEmail } from "@/lib/legal";
 import type { ContactCategory } from "@/lib/safety-input";
 
 const categories: Array<{ value: ContactCategory; label: string }> = [
@@ -53,14 +54,17 @@ export function ContactScreen() {
           <p className="mt-2 text-[12px] font-normal leading-relaxed text-[var(--muted)]">内容を確認し、必要に応じて入力いただいたメールアドレスへ返信します。</p>
         </section>
       ) : (
-        <form onSubmit={submit} className="space-y-5 pt-6">
+        <>
+          <p className="pt-6 text-[12px] font-normal leading-relaxed text-[var(--muted)]">フォームを利用できない場合は、<a className="break-all text-[var(--accent)] underline underline-offset-2" href={`mailto:${publicContactEmail}`}>{publicContactEmail}</a>へご連絡ください。</p>
+          <form onSubmit={submit} className="space-y-5 pt-5">
           <div><label htmlFor="contact-email" className="text-[13px]">返信先メールアドレス</label><input id="contact-email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoComplete="email" className="mt-2 min-h-11 w-full rounded-[8px] border border-[var(--border)] bg-white px-3 text-[16px] outline-none focus:border-[var(--accent)]" /></div>
           <div><label htmlFor="contact-category" className="text-[13px]">お問い合わせ種別</label><select id="contact-category" value={category} onChange={(event) => setCategory(event.target.value as ContactCategory)} className="mt-2 min-h-11 w-full rounded-[8px] border border-[var(--border)] bg-white px-3 text-[16px] outline-none focus:border-[var(--accent)]">{categories.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}</select></div>
           <div><label htmlFor="contact-message" className="text-[13px]">お問い合わせ内容</label><textarea id="contact-message" value={message} onChange={(event) => setMessage(event.target.value)} required minLength={20} maxLength={1000} rows={8} placeholder="20文字以上で入力してください" className="mt-2 min-h-[180px] w-full resize-none rounded-[8px] border border-[var(--border)] bg-white px-3 py-3 text-[16px] font-normal leading-relaxed outline-none focus:border-[var(--accent)]" /><p className="mt-1 text-right text-[11px] font-normal text-[var(--muted)]">{message.length}/1000</p></div>
           <div className="absolute -left-[10000px] top-auto h-px w-px overflow-hidden" aria-hidden="true"><label htmlFor="contact-website">ウェブサイト</label><input id="contact-website" tabIndex={-1} autoComplete="off" value={website} onChange={(event) => setWebsite(event.target.value)} /></div>
           {error ? <p role="alert" className="rounded-[8px] bg-[#fff1f2] px-3 py-2 text-[12px] font-normal text-[#c53d47]">{error}</p> : null}
           <button type="submit" disabled={submitting} className="tap-target inline-flex w-full items-center justify-center gap-2 rounded-[10px] bg-[var(--accent)] px-4 text-[15px] !text-white disabled:opacity-60"><Send className="h-4 w-4" strokeWidth={1.8} />{submitting ? "送信中…" : "送信する"}</button>
-        </form>
+          </form>
+        </>
       )}
     </div>
   );

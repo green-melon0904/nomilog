@@ -1,5 +1,6 @@
 import { AppShell } from "@/components/AppShell";
 import { LegalDocumentPage } from "@/components/LegalDocumentPage";
+import { legalEstablishedAt, legalUpdatedAt, publicContactEmail, publicOperatorName } from "@/lib/legal";
 
 const sections = [
   { heading: "1. サービスの内容", paragraphs: ["のみログは、飲料の商品情報やレビューを閲覧・投稿できるサービスです。掲載情報は参考情報であり、商品の品質、安全性、販売状況を保証するものではありません。"] },
@@ -13,5 +14,14 @@ const sections = [
 ];
 
 export default function TermsPage() {
-  return <AppShell><LegalDocumentPage title="利用規約" intro="この利用規約は、のみログを利用する際のルールを定めるものです。サービスを利用する前にご確認ください。" sections={sections} /></AppShell>;
+  return (
+    <AppShell>
+      <LegalDocumentPage
+        title="利用規約"
+        intro="この利用規約は、のみログを利用する際のルールを定めるものです。サービスを利用する前にご確認ください。"
+        metadata={{ establishedAt: legalEstablishedAt, updatedAt: legalUpdatedAt, operatorName: publicOperatorName, contactEmail: publicContactEmail }}
+        sections={sections}
+      />
+    </AppShell>
+  );
 }
