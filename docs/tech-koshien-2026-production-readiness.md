@@ -56,7 +56,7 @@
 - [x] 公開URLにVercelのPassword Protectionなど、審査員を遮る制限がないことを確認する。
 - [ ] カスタムドメインを使う場合は所有権とDNSを確認する。期限優先のため、取得できない場合は`vercel.app` URLで提出する。
 
-2026-08-22にVercel Hobbyの`kento-dev/nomilog`を作成してGitHubのprivateリポジトリへ接続した。初回Productionは31ルートのビルドに成功し、`https://nomilog-eight.vercel.app`が認証なしでHTTP 200を返すことを確認した。
+2026-08-22にVercel Hobbyの`kento-dev/nomilog`を作成してGitHubのprivateリポジトリへ接続した。初回Productionは31ルートのビルドに成功し、`https://nomilog-eight.vercel.app`が認証なしでHTTP 200を返すことを確認した。GitHub連携時の`COMMIT_AUTHOR_REQUIRED`は、リポジトリのコミット作者をGitHub発行のnoreplyメールへ変更して解消する。
 
 ### 3. 本番環境変数とWorkOSを設定する
 
