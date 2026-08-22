@@ -167,6 +167,7 @@ export function MyPageScreen() {
   function startAuth(mode: "sign-in" | "sign-up") {
     // 入口をログイン・新規登録で分けても、returnToの最終的な安全性はRoute Handler側で再検証する。
     // 認証後はマイページへ戻し、ユーザーが自分の状態を確認できる場所から再開する。
+    // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- WorkOSへ一度だけ遷移させ、PKCE Cookieの重複生成を防ぐ。
     window.location.assign(`${mode === "sign-up" ? "/sign-up" : "/sign-in"}?next=%2Fmypage`);
   }
 

@@ -42,6 +42,8 @@ export function FavoriteButtonView({
   async function onToggle() {
     setError("");
     if (status === "signed-out") {
+      // WorkOSへリダイレクトするRoute Handlerなので、PKCE Cookieを二重生成しない文書遷移を使う。
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 認証Route Handlerは通常のNext.jsページではない。
       window.location.assign(`/sign-in?next=${encodeURIComponent(returnTo)}`);
       return;
     }
