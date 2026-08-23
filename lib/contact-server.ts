@@ -6,6 +6,7 @@
  */
 import { createClient } from "@supabase/supabase-js";
 import type { ContactCategory } from "@/lib/safety-input";
+import { readSupabaseSecretKey } from "./supabase-secret-key.ts";
 
 export class ContactRateLimitError extends Error {
   constructor() {
@@ -27,7 +28,7 @@ type ContactSubmission = {
  */
 export async function submitContactInquiry(input: ContactSubmission) {
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
-  const secretKey = process.env.SUPABASE_SECRET_KEY;
+  const secretKey = readSupabaseSecretKey();
   if (!url || !secretKey) throw new Error("Contact submission credentials are missing");
 
   const supabase = createClient(url, secretKey, {
