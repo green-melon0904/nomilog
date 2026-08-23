@@ -10,7 +10,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { ContactRateLimitError, submitContactInquiry } from "@/lib/contact-server";
 import { readJsonBodyWithinLimit, RequestBodyTooLargeError } from "@/lib/request-body";
 import { isSameOriginRequest } from "@/lib/request-security";
+import { createSafeErrorLog } from "@/lib/safe-error-log";
 import { parseContactInquiryInput } from "@/lib/safety-input";
+import { readSupabaseSecretKey } from "@/lib/supabase-secret-key";
 import { createWorkOSSupabaseClient } from "@/lib/supabase-server";
 import { ensureWorkOSProfile } from "@/lib/supabase-user";
 import { hasWorkOSAuthConfig } from "@/lib/workos";
@@ -21,7 +23,7 @@ export async function POST(request: NextRequest) {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL
     || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    || !process.env.SUPABASE_SECRET_KEY
+    || !readSupabaseSecretKey()
     || !process.env.WORKOS_COOKIE_PASSWORD
   ) {
     return NextResponse.json({ error: "お問い合わせ機能を準備中です。" }, { status: 503 });
@@ -62,7 +64,8 @@ export async function POST(request: NextRequest) {
     if (error instanceof ContactRateLimitError) {
       return NextResponse.json({ error: "短時間に送信できる回数を超えました。しばらくしてからお試しください。" }, { status: 429 });
     }
-    console.error("[contact] submission failed", error);
+    // HTTPライブラリの例外にはヘッダー値が含まれる場合があるため、messageやdetailsはログへ渡さない。
+    console.error("[contact] submission failed", createSafeErrorLog(error));
     return NextResponse.json({ error: "お問い合わせを送信できませんでした。時間をおいてもう一度お試しください。" }, { status: 500 });
   }
 }
