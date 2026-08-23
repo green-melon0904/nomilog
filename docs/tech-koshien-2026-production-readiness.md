@@ -15,7 +15,7 @@
 
 **No-Go: 現時点では本番公開しない。**
 
-アプリの主要機能、認証境界、RLS、モバイルUI、本番ビルド、Vercel公開先、運営情報は整った。一方で、仮商品・仮レビューが残り、WorkOS Production環境、運営権限、お問い合わせ保存用キーが未設定である。下記の残りのP0を完了してから一般公開へ切り替える。
+アプリの主要機能、認証境界、RLS、モバイルUI、本番ビルド、Vercel公開先、運営情報は整った。一方で、仮商品・仮レビューが残り、WorkOS Production環境、運営権限、お問い合わせの本番動作確認が未完了である。下記の残りのP0を完了してから一般公開へ切り替える。
 
 ## 確認済みの現状
 
@@ -29,7 +29,7 @@
 | Review Storage | 保存画像0件 | 良好 |
 | 運営権限 | `app_admins`は0件 | 通報対応不可 |
 | WorkOS | StagingへVercel公開URLを登録し、SupabaseのIssuer一致とHosted UIへの遷移を確認済み | 一般公開前にProductionへ切替必須 |
-| お問い合わせ | `SUPABASE_SERVICE_ROLE_KEY`がローカルでも未設定 | 送信不可 |
+| お問い合わせ | `SUPABASE_SECRET_KEY`をVercel ProductionへSensitive登録済み | 実送信確認待ち |
 | 法務文書 | 運営主体、連絡先、制定日、更新日、保存期間を反映済み | 保護者または学校の確認待ち |
 | 依存パッケージ | 開発依存を含む`npm audit` 0件 | 良好 |
 | CI | GitHub Actionsなし | 推奨 |
@@ -61,7 +61,7 @@
 ### 3. 本番環境変数とWorkOSを設定する
 
 - [x] Vercel ProductionへSupabaseのURLと公開キーを設定する。
-- [ ] `SUPABASE_SERVICE_ROLE_KEY`をサーバー専用変数として設定する。
+- [x] `SUPABASE_SECRET_KEY`をサーバー専用変数として設定する。
 - [x] WorkOS StagingのClient ID、API Key、64文字以上を推奨するCookie PasswordをVercel Productionへ設定する。
 - [x] `NEXT_PUBLIC_WORKOS_REDIRECT_URI`を本番URLの`/auth/callback`へ変更する。
 - [x] WorkOS Stagingへ本番Redirect URI、Sign-in endpoint、Sign-out redirect、App homepageを登録する。

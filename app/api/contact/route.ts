@@ -21,7 +21,7 @@ export async function POST(request: NextRequest) {
   if (
     !process.env.NEXT_PUBLIC_SUPABASE_URL
     || !process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY
-    || !process.env.SUPABASE_SERVICE_ROLE_KEY
+    || !process.env.SUPABASE_SECRET_KEY
     || !process.env.WORKOS_COOKIE_PASSWORD
   ) {
     return NextResponse.json({ error: "お問い合わせ機能を準備中です。" }, { status: 503 });

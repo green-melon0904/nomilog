@@ -74,7 +74,8 @@ begin
 end;
 $$;
 
--- service_roleはNext.jsサーバーだけが保持する。公開キーやWorkOSユーザーは関数を直接実行できない。
+-- Secret keyはAPI Gatewayでservice_roleへ対応付けられる。キーはNext.jsサーバーだけが保持し、
+-- 公開キーやWorkOSユーザーは関数を直接実行できない。
 revoke execute on function public.submit_contact_inquiry(text, text, text, text, text)
   from public, anon, authenticated;
 grant execute on function public.submit_contact_inquiry(text, text, text, text, text)
