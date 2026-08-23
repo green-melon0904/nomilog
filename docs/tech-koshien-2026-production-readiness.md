@@ -15,7 +15,7 @@
 
 **No-Go: 現時点では本番公開しない。**
 
-アプリの主要機能、認証境界、RLS、モバイルUI、本番ビルド、Vercel公開先、運営情報は整った。一方で、仮商品・仮レビューが残り、WorkOS Production環境、運営権限、お問い合わせの本番動作確認が未完了である。下記の残りのP0を完了してから一般公開へ切り替える。
+アプリの主要機能、認証境界、RLS、モバイルUI、本番ビルド、Vercel公開先、運営情報、お問い合わせ保存は整った。一方で、仮商品・仮レビューが残り、WorkOS Production環境と運営権限が未設定である。下記の残りのP0を完了してから一般公開へ切り替える。
 
 ## 確認済みの現状
 
@@ -29,7 +29,7 @@
 | Review Storage | 保存画像0件 | 良好 |
 | 運営権限 | `app_admins`は0件 | 通報対応不可 |
 | WorkOS | StagingへVercel公開URLを登録し、SupabaseのIssuer一致とHosted UIへの遷移を確認済み | 一般公開前にProductionへ切替必須 |
-| お問い合わせ | `SUPABASE_SECRET_KEY`をVercel ProductionへSensitive登録済み | 実送信確認待ち |
+| お問い合わせ | Secret keyをVercel ProductionへSensitive登録し、送信・DB保存・テスト削除を確認済み | 良好 |
 | 法務文書 | 運営主体、連絡先、制定日、更新日、保存期間を反映済み | 保護者または学校の確認待ち |
 | 依存パッケージ | 開発依存を含む`npm audit` 0件 | 良好 |
 | CI | GitHub Actionsなし | 推奨 |
@@ -71,6 +71,8 @@
 
 秘密値はGitHub、提出用ソース、README、スクリーンショットへ含めない。PreviewとProductionでCookie Passwordを分け、漏えい時に片方だけを失効できるようにする。
 
+2026-08-23に問い合わせ保存を旧`service_role`キーから`sb_secret_`形式へ移行した。初回設定値に改行が混入し、HTTPライブラリの例外が認証情報をVercelログへ含めたため、該当キーを直ちに失効して新しいキーへローテーションした。再発防止としてSecret keyの形式と空白混入を通信前に検証し、外部SDKの例外はSQLSTATEまたはPostgRESTコード以外をログへ残さない。Productionでは匿名問い合わせがHTTP 201となりDBへ保存されることを確認し、検証レコードを削除して残件0件を確認した。
+
 2026-08-22にWorkOS Stagingの「のみログ」アプリへVercel公開URLを登録し、公開URLのサインイン導線からWorkOS Hosted UIへ正常に遷移することを確認した。Supabase Third-Party Authは有効で、Issuer URLのClient IDも同じStagingアプリと一致している。Stagingは安全な動作確認には利用できるが、WorkOSの案内では顧客向けトラフィックを扱う環境ではない。Productionの有効化には支払い情報の登録が必要なため、無料のまま進める現在はテスト用途に限定し、応募URLを一般公開する前にProductionへ切り替える。
 
 WorkOS公式資料:
@@ -104,7 +106,8 @@ WorkOS公式資料:
 - [ ] WorkOSの本番管理ユーザーを1名作る。
 - [ ] WorkOS User IDを`app_admins`へ登録する。
 - [ ] 通報受信、レビュー非公開化、復元、対応完了を本番で確認する。
-- [ ] お問い合わせ送信と運営画面での受信を確認する。
+- [x] お問い合わせAPIの送信とDB保存を本番で確認し、検証データを削除する。
+- [ ] お問い合わせを運営画面で受信できることを確認する。
 - [ ] 緊急時に管理者権限を解除する手順を再確認する。
 
 ### 6. 法務文書と問い合わせ先を確定する
