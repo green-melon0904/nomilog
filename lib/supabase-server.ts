@@ -2,7 +2,7 @@
  * WorkOSのアクセストークンをSupabaseへ渡すサーバーClient。
  *
  * ユーザー所有データでは、公開キーとThird-Party AuthのJWTを組み合わせて必ずRLSを通す。
- * service_roleは問い合わせ専用の隔離されたClientだけに限定し、ここでは使わない。これにより、
+ * RLSを迂回するSecret keyは問い合わせ専用の隔離されたClientだけに限定し、ここでは使わない。これにより、
  * Route Handlerのバグだけで他ユーザーのデータを変更できる経路を作らない。
  */
 import { createClient } from "@supabase/supabase-js";

@@ -23,14 +23,14 @@
 
 `.env.local`に、同じWorkOS環境かつ同じApplicationの値を設定します。`WORKOS_CLIENT_ID`はRedirect URIを登録したApplicationのCredentialsからコピーし、`WORKOS_API_KEY`は同じStagingまたはProduction環境で作成します。`WORKOS_COOKIE_PASSWORD`には32文字以上のランダム文字列を使います。
 
-お問い合わせの保存には、Supabase Dashboardの`Project Settings` → `API Keys`にある`service_role`キーも設定します。このキーはRLSを迂回できるため、サーバー専用の`SUPABASE_SERVICE_ROLE_KEY`へ入れ、`NEXT_PUBLIC_`を付けたりGitへコミットしたりしないでください。のみログでは問い合わせ専用RPCにだけ使用します。
+お問い合わせの保存には、Supabase Dashboardの`Project Settings` → `API Keys`にある`sb_secret_`形式のSecret keyも設定します。このキーはRLSを迂回できるため、サーバー専用の`SUPABASE_SECRET_KEY`へ入れ、`NEXT_PUBLIC_`を付けたりGitへコミットしたりしないでください。のみログでは問い合わせ専用RPCにだけ使用します。旧`service_role`キーは2026年末に非推奨化されるため、新規設定には使いません。
 
 ```env
 WORKOS_CLIENT_ID=client_...
 WORKOS_API_KEY=sk_...
 WORKOS_COOKIE_PASSWORD=32文字以上のランダム値
 NEXT_PUBLIC_WORKOS_REDIRECT_URI=http://127.0.0.1:3008/auth/callback
-SUPABASE_SERVICE_ROLE_KEY=service_roleキー
+SUPABASE_SECRET_KEY=sb_secret_形式のSecret key
 ```
 
 ## 3. Supabase Third-Party Auth
