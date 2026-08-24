@@ -6,9 +6,11 @@ import { withAuth } from "@workos-inc/authkit-nextjs";
 import { NextRequest, NextResponse } from "next/server";
 import { readJsonBodyWithinLimit, RequestBodyTooLargeError } from "@/lib/request-body";
 import { isSameOriginRequest } from "@/lib/request-security";
+import { createSafeErrorLog } from "@/lib/safe-error-log";
 import { parseReviewReportInput } from "@/lib/safety-input";
 import { createWorkOSSupabaseClient } from "@/lib/supabase-server";
 import { ensureWorkOSProfile } from "@/lib/supabase-user";
+import { enforceUserWriteRateLimit, UserWriteRateLimitError } from "@/lib/user-write-rate-limit";
 import { hasWorkOSAuthConfig } from "@/lib/workos";
 
 const maxReportRequestBytes = 8 * 1024;
@@ -39,6 +41,8 @@ export async function POST(request: NextRequest) {
   if (!report) return NextResponse.json({ error: "通報内容を確認してください。" }, { status: 400 });
 
   try {
+    await enforceUserWriteRateLimit(auth.user.id, "review_report");
+
     const supabase = createWorkOSSupabaseClient(auth.accessToken);
     const { data: review, error: reviewError } = await supabase
       .from("reviews")
@@ -66,7 +70,13 @@ export async function POST(request: NextRequest) {
     if (error) throw error;
     return NextResponse.json({ ok: true }, { status: 201 });
   } catch (error) {
-    console.error("[review-reports] submission failed", error);
+    if (error instanceof UserWriteRateLimitError) {
+      return NextResponse.json(
+        { error: "通報が続いています。少し待ってからもう一度お試しください。" },
+        { status: 429, headers: { "Retry-After": String(error.retryAfterSeconds) } }
+      );
+    }
+    console.error("[review-reports] submission failed", createSafeErrorLog(error));
     return NextResponse.json({ error: "通報を送信できませんでした。時間をおいてもう一度お試しください。" }, { status: 500 });
   }
 }
