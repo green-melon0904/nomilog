@@ -1,6 +1,6 @@
 # テック甲子園2026 本番公開チェックリスト
 
-最終更新: 2026-08-22
+最終更新: 2026-08-24
 
 ## 目的
 
@@ -15,7 +15,7 @@
 
 **No-Go: 現時点では本番公開しない。**
 
-アプリの主要機能、認証境界、RLS、モバイルUI、本番ビルド、Vercel公開先、運営情報、お問い合わせ保存は整った。一方で、仮商品・仮レビューが残り、WorkOS Production環境と運営権限が未設定である。下記の残りのP0を完了してから一般公開へ切り替える。
+アプリの主要機能、認証境界、RLS、モバイルUI、本番ビルド、Vercel公開先、運営情報、お問い合わせ保存、WorkOS Staging管理者による運営画面の受信確認は整った。一方で、仮商品・仮レビューが残り、WorkOS Production環境とProduction用管理者が未設定である。下記の残りのP0を完了してから一般公開へ切り替える。
 
 ## 確認済みの現状
 
@@ -27,8 +27,8 @@
 | Supabase | 商品20件、レビュー6件、デモプロフィール6件 | 仮データのため公開不可 |
 | 投稿対象商品 | 20件すべて仮商品。酒類4件を含む | 要差し替え・方針決定 |
 | Review Storage | 保存画像0件 | 良好 |
-| 運営権限 | `app_admins`は0件 | 通報対応不可 |
-| WorkOS | StagingへVercel公開URLを登録し、SupabaseのIssuer一致とHosted UIへの遷移を確認済み | 一般公開前にProductionへ切替必須 |
+| 運営権限 | WorkOS Stagingの検証管理者1名を`app_admins`へ登録し、運営画面の受信を確認済み | Production切替時に再登録が必要 |
+| WorkOS | StagingへVercel公開URLを登録し、SupabaseのIssuer一致、ログイン、管理者判定を確認済み | 一般公開前にProductionへ切替必須 |
 | お問い合わせ | Secret keyをVercel ProductionへSensitive登録し、送信・DB保存・テスト削除を確認済み | 良好 |
 | 法務文書 | 運営主体、連絡先、制定日、更新日、保存期間を反映済み | 保護者または学校の確認待ち |
 | 依存パッケージ | 開発依存を含む`npm audit` 0件 | 良好 |
@@ -75,6 +75,8 @@
 
 2026-08-22にWorkOS Stagingの「のみログ」アプリへVercel公開URLを登録し、公開URLのサインイン導線からWorkOS Hosted UIへ正常に遷移することを確認した。Supabase Third-Party Authは有効で、Issuer URLのClient IDも同じStagingアプリと一致している。Stagingは安全な動作確認には利用できるが、WorkOSの案内では顧客向けトラフィックを扱う環境ではない。Productionの有効化には支払い情報の登録が必要なため、無料のまま進める現在はテスト用途に限定し、応募URLを一般公開する前にProductionへ切り替える。
 
+2026-08-24にWorkOS Stagingの検証管理者でVercel Productionへログインし、`app_admins`とRLSによる管理者判定、運営画面でのレビュー通報・問い合わせ受信を確認した。ログイン直後に運営APIが401になった原因は、マイページのGETログアウトリンクをNext.jsが先読みしてセッションを終了していたことだった。ログアウトを明示的なServer ActionのPOSTへ変更し、旧GETルートを副作用なしにした後、Vercelログで自動`GET /sign-out`が発生せず、`GET /api/admin/moderation`がHTTP 200になることを確認した。
+
 WorkOS公式資料:
 
 - <https://workos.com/docs/authkit/environments>
@@ -103,12 +105,16 @@ WorkOS公式資料:
 
 ### 5. 運営機能を実際に使える状態にする
 
+- [x] WorkOS Stagingの検証管理ユーザーを1名作る。
+- [x] StagingのWorkOS User IDを`app_admins`へ登録する。
 - [ ] WorkOSの本番管理ユーザーを1名作る。
-- [ ] WorkOS User IDを`app_admins`へ登録する。
+- [ ] ProductionのWorkOS User IDを`app_admins`へ登録する。
 - [ ] 通報受信、レビュー非公開化、復元、対応完了を本番で確認する。
 - [x] お問い合わせAPIの送信とDB保存を本番で確認し、検証データを削除する。
-- [ ] お問い合わせを運営画面で受信できることを確認する。
+- [x] お問い合わせを運営画面で受信できることを確認する。
 - [ ] 緊急時に管理者権限を解除する手順を再確認する。
+
+2026-08-24にVercel Production上の運営画面で検証用のレビュー通報1件と問い合わせ1件を受信した。受信後は対象の通報行と問い合わせ行だけを削除し、同じ検証条件の残件がどちらも0件であることを確認した。レビュー非公開化、復元、対応完了はまだ操作していないため、本番管理者をProductionへ切り替えた後の確認項目として残す。
 
 ### 6. 法務文書と問い合わせ先を確定する
 
