@@ -11,7 +11,9 @@ import { NextRequest, NextResponse } from "next/server";
 import { imageExtension, readImageDataUrl } from "@/lib/image-data-url";
 import { isSameOriginRequest } from "@/lib/request-security";
 import { readJsonBodyWithinLimit, RequestBodyTooLargeError } from "@/lib/request-body";
+import { createSafeErrorLog } from "@/lib/safe-error-log";
 import { createWorkOSSupabaseClient } from "@/lib/supabase-server";
+import { enforceUserWriteRateLimit, UserWriteRateLimitError } from "@/lib/user-write-rate-limit";
 import { hasWorkOSAuthConfig } from "@/lib/workos";
 import type { CarbonationLevel, PurchaseLocation, SceneTag } from "@/lib/types";
 
@@ -142,6 +144,9 @@ export async function POST(request: NextRequest) {
   if (!review || review.removeImage) {
     return NextResponse.json({ error: "入力内容を確認してください。" }, { status: 400 });
   }
+
+  const rateLimitResponse = await enforceReviewCreateRateLimit(auth.user.id);
+  if (rateLimitResponse) return rateLimitResponse;
 
   try {
     const supabase = createWorkOSSupabaseClient(auth.accessToken);
@@ -300,6 +305,32 @@ export async function PATCH(request: NextRequest) {
   } catch (error) {
     console.error("[reviews] WorkOS-authenticated review update failed", error);
     return NextResponse.json({ error: "レビューの更新に失敗しました。時間をおいてもう一度お試しください。" }, { status: 500 });
+  }
+}
+
+/**
+ * 入力検証後、画像アップロードや商品照合より先に共有カウンターを消費し、短時間の新規投稿でStorageと
+ * DBへ負荷が集中するのを防ぐ。編集は投稿数を増やさないため同じ枠へ含めず、入力ミスでも回数を消費しない。
+ * 制限基盤が壊れた場合は投稿を許可せず500にする。可用性より書き込み境界を優先し、障害中の無制限投稿を
+ * 意図的に避ける。
+ */
+async function enforceReviewCreateRateLimit(userId: string) {
+  try {
+    await enforceUserWriteRateLimit(userId, "review_create");
+    return null;
+  } catch (error) {
+    if (error instanceof UserWriteRateLimitError) {
+      return NextResponse.json(
+        { error: "レビューの操作が続いています。少し待ってからもう一度お試しください。" },
+        { status: 429, headers: { "Retry-After": String(error.retryAfterSeconds) } }
+      );
+    }
+
+    console.error("[reviews] rate limit check failed", createSafeErrorLog(error));
+    return NextResponse.json(
+      { error: "レビューの保存に失敗しました。時間をおいてもう一度お試しください。" },
+      { status: 500 }
+    );
   }
 }
 

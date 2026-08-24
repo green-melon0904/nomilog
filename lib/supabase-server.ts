@@ -2,8 +2,8 @@
  * WorkOSのアクセストークンをSupabaseへ渡すサーバーClient。
  *
  * ユーザー所有データでは、公開キーとThird-Party AuthのJWTを組み合わせて必ずRLSを通す。
- * RLSを迂回するSecret keyは問い合わせ専用の隔離されたClientだけに限定し、ここでは使わない。これにより、
- * Route Handlerのバグだけで他ユーザーのデータを変更できる経路を作らない。
+ * RLSを迂回するSecret keyは問い合わせ・レート制限の専用RPCラッパーだけに限定し、ここでは使わない。
+ * これにより、通常のRoute Handlerのバグだけで他ユーザーのデータを変更できる経路を作らない。
  */
 import { createClient } from "@supabase/supabase-js";
 

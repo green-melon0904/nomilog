@@ -8,7 +8,9 @@
 import { withAuth } from "@workos-inc/authkit-nextjs";
 import { NextRequest, NextResponse } from "next/server";
 import { isSameOriginRequest } from "@/lib/request-security";
+import { createSafeErrorLog } from "@/lib/safe-error-log";
 import { createWorkOSSupabaseClient } from "@/lib/supabase-server";
+import { enforceUserWriteRateLimit, UserWriteRateLimitError } from "@/lib/user-write-rate-limit";
 import { hasWorkOSAuthConfig } from "@/lib/workos";
 
 type LikeActionBody = {
@@ -115,6 +117,8 @@ async function updateLike(request: NextRequest, shouldLike: boolean) {
   }
 
   try {
+    await enforceUserWriteRateLimit(auth.user.id, "review_like");
+
     const supabase = createWorkOSSupabaseClient(auth.accessToken);
     await ensureProfile(supabase, auth.user.id, auth.user.email, auth.user.firstName, auth.user.lastName);
 
@@ -147,8 +151,14 @@ async function updateLike(request: NextRequest, shouldLike: boolean) {
     const likeCount = await readLikeCount(supabase, reviewId);
     return NextResponse.json({ liked: shouldLike, likeCount });
   } catch (error) {
+    if (error instanceof UserWriteRateLimitError) {
+      return NextResponse.json(
+        { error: "操作が続いています。少し待ってからもう一度お試しください。" },
+        { status: 429, headers: { "Retry-After": String(error.retryAfterSeconds) } }
+      );
+    }
     // DBやRLSの内部情報を出さず、画面には再試行可能な一般メッセージだけを返す。
-    console.error("[review-likes] like update failed", error);
+    console.error("[review-likes] like update failed", createSafeErrorLog(error));
     return NextResponse.json({ error: "いいねの更新に失敗しました。時間をおいてもう一度お試しください。" }, { status: 500 });
   }
 }
