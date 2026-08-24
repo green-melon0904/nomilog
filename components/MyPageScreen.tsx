@@ -47,6 +47,7 @@ import type { ProductWithStats, Review } from "@/lib/types";
 import { useNomilogProducts } from "@/components/useNomilogProducts";
 import { useNomilogReviews } from "@/components/useNomilogReviews";
 import { useNomilogFavorites } from "@/components/useNomilogFavorites";
+import { signOutAction } from "@/app/actions/auth";
 
 type AuthUser = {
   id: string;
@@ -442,11 +443,15 @@ function SignedInMyPage({
           <SupportRow icon={Heart} label="お気に入り管理" href="/mypage/favorites" />
           <SupportRow icon={Trash2} label="アカウント管理" href="/mypage/account" />
           {isAdmin ? <SupportRow icon={ShieldCheck} label="運営管理" href="/admin/moderation" /> : null}
-          <Link href="/sign-out" className="tap-target flex items-center gap-4 border-b-0 px-5 text-[15px] text-[var(--text)]">
-            <LogOut className="h-5 w-5 text-[var(--text)]" strokeWidth={1.7} />
-            <span className="flex-1">ログアウト</span>
-            <ChevronRight className="h-5 w-5" strokeWidth={1.7} />
-          </Link>
+          <form action={signOutAction}>
+            {/* 状態を変更するログアウトはLinkにしない。Next.jsの先読みがGETを実行して、
+                マイページを開いただけの利用者をログアウトさせる事故を防ぐ。 */}
+            <button type="submit" className="tap-target flex w-full items-center gap-4 border-b-0 px-5 text-left text-[15px] text-[var(--text)]">
+              <LogOut className="h-5 w-5 text-[var(--text)]" strokeWidth={1.7} />
+              <span className="flex-1">ログアウト</span>
+              <ChevronRight className="h-5 w-5" strokeWidth={1.7} />
+            </button>
+          </form>
         </div>
       </section>
 
