@@ -2,6 +2,7 @@
 
 import { AlertTriangle, Trash2 } from "lucide-react";
 import { useState } from "react";
+import { signOutAction } from "@/app/actions/auth";
 import { MobilePageHeader } from "@/components/MobilePageHeader";
 import { accountDeletionConfirmation } from "@/lib/safety-input";
 
@@ -28,9 +29,9 @@ export function AccountSettingsScreen() {
       });
       const result = await response.json().catch(() => null) as { error?: string } | null;
       if (!response.ok) throw new Error(result?.error ?? "アカウントを削除できませんでした。");
-      // Route HandlerでCookie削除とWorkOSログアウトを一度だけ行うため、RSC遷移ではなく文書遷移を使う。
-      // eslint-disable-next-line @next/next/no-location-assign-relative-destination -- 認証Route Handlerは通常のNext.jsページではない。
-      window.location.assign("/sign-out");
+      // アカウント削除後も暗号化Cookieだけが残るとログイン済み表示へ戻れるため、通常のログアウトと
+      // 同じ明示的なPOST操作で端末側セッションを終了する。GETへ移動すると先読み可能な副作用が復活する。
+      await signOutAction();
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "アカウントを削除できませんでした。");
       setDeleting(false);
