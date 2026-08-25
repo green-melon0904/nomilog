@@ -1,0 +1,44 @@
+-- 対応完了から1年を過ぎた通報と問い合わせだけを削除する月次運用SQL。
+-- 未対応データを巻き込まないよう、状態と完了日時の両方を削除条件にする。
+
+select
+  (
+    select count(*)
+    from public.review_reports
+    where status in ('resolved', 'dismissed')
+      and reviewed_at < now() - interval '1 year'
+  ) as expired_review_reports,
+  (
+    select count(*)
+    from public.contact_inquiries
+    where status = 'resolved'
+      and handled_at < now() - interval '1 year'
+  ) as expired_contact_inquiries;
+
+begin;
+
+do $$
+begin
+  if 'REPLACE_WITH_CONFIRMATION' <> 'PURGE_EXPIRED_MODERATION_DATA_CONFIRMED' then
+    raise exception 'Stop: review the preview counts and replace the confirmation text.';
+  end if;
+end
+$$;
+
+with deleted_review_reports as (
+  delete from public.review_reports
+  where status in ('resolved', 'dismissed')
+    and reviewed_at < now() - interval '1 year'
+  returning id
+),
+deleted_contact_inquiries as (
+  delete from public.contact_inquiries
+  where status = 'resolved'
+    and handled_at < now() - interval '1 year'
+  returning id
+)
+select
+  (select count(*) from deleted_review_reports) as deleted_review_reports,
+  (select count(*) from deleted_contact_inquiries) as deleted_contact_inquiries;
+
+commit;
