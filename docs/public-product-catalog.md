@@ -5,18 +5,20 @@
 
 ## 必要な商品
 
-| No. | 商品名 | メーカー | カテゴリ | 撮影する容量の目安 | 画像ファイル名 |
-| ---: | --- | --- | --- | --- | --- |
-| 1 | ウィルキンソン タンサン | アサヒ飲料 | 炭酸 | PET 500ml | `wilkinson-tansan` |
-| 2 | ウィルキンソン タンサン レモン | アサヒ飲料 | 炭酸 | PET 500ml | `wilkinson-lemon` |
-| 3 | 三ツ矢サイダー | アサヒ飲料 | 炭酸 | PET 500ml | `mitsuya-cider` |
-| 4 | お～いお茶 緑茶 | 伊藤園 | お茶 | PET 600ml | `oi-ocha-green` |
-| 5 | お～いお茶 ほうじ茶 | 伊藤園 | お茶 | PET 600ml | `oi-ocha-hojicha` |
-| 6 | 緑茶 伊右衛門 | サントリー食品インターナショナル | お茶 | PET 600ml | `iyemon-green` |
-| 7 | ボス 無糖ブラック | サントリー食品インターナショナル | コーヒー | 缶 185g | `boss-black` |
-| 8 | TULLY’S COFFEE BARISTA’S BLACK キリマンジャロ | 伊藤園 | コーヒー | ボトル缶 390ml | `tullys-black-kilimanjaro` |
-| 9 | ポカリスエット | 大塚製薬 | その他 | PET 500ml | `pocari-sweat` |
-| 10 | カルピスウォーター | アサヒ飲料 | その他 | PET 500ml | `calpis-water` |
+| No. | 商品名 | メーカー | カテゴリ | 撮影容量 | JANコード | 画像ファイル名 | 公式情報 |
+| ---: | --- | --- | --- | --- | --- | --- | --- |
+| 1 | ウィルキンソン タンサン | アサヒ飲料 | 炭酸 | PET 500ml | `4514603325812` | `wilkinson-tansan` | [商品情報](https://www.asahiinryo.co.jp/products/carbonated/wilkinson_tansan/2T391.html) |
+| 2 | ウィルキンソン タンサン レモン | アサヒ飲料 | 炭酸 | PET 500ml | `4514603347418` | `wilkinson-lemon` | [ブランド商品情報](https://www.asahiinryo.co.jp/products/wilkinson/) |
+| 3 | 三ツ矢サイダー | アサヒ飲料 | 炭酸 | PET 500ml | `4514603263213` | `mitsuya-cider` | [商品情報](https://www.asahiinryo.co.jp/products/carbonated/mitsuya_cider/index.html) |
+| 4 | お～いお茶 緑茶 | 伊藤園 | お茶 | PET 600ml | `4901085003800` | `oi-ocha-green` | [商品情報](https://www.itoen.jp/products/45534/) |
+| 5 | お～いお茶 ほうじ茶 | 伊藤園 | お茶 | PET 600ml | `4901085191927` | `oi-ocha-hojicha` | [商品情報](https://www.itoen.jp/products/41604/) |
+| 6 | 緑茶 伊右衛門 | サントリー食品インターナショナル | お茶 | PET 600ml | `4901777300446` | `iyemon-green` | [商品情報](https://products.suntory.co.jp/d/4901777300446/) |
+| 7 | ボス 無糖ブラック | サントリー食品インターナショナル | コーヒー | 缶 185g | `4901777204980` | `boss-black` | [商品情報](https://products.suntory.co.jp/d/4901777204980/) |
+| 8 | TULLY’S COFFEE BARISTA’S BLACK キリマンジャロ | 伊藤園 | コーヒー | ボトル缶 390ml | `4901085653463` | `tullys-black-kilimanjaro` | [商品情報](https://www.itoen.jp/products/50925/) |
+| 9 | ポカリスエット | 大塚製薬 | その他 | PET 500ml | `45019517` | `pocari-sweat` | [商品情報](https://www.otsuka.co.jp/nutraceutical/products/pocarisweat/) |
+| 10 | カルピスウォーター | アサヒ飲料 | その他 | PET 500ml | `4901340689213` | `calpis-water` | [商品情報](https://www.asahiinryo.co.jp/products/milkybeverage/calpis_water/) |
+
+商品名、メーカー、容量、JANコードは2026年8月25日に各メーカー公式ページで確認しました。パッケージ変更時はJANコードと撮影画像を再確認し、この日付も更新します。
 
 容量は撮影するパッケージを揃えるための目安です。のみログ上では、同じ味の商品を容量別に分割せず、一つの商品としてレビューを集約します。
 

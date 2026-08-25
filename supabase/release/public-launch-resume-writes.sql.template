@@ -1,0 +1,137 @@
+-- 公開切替を開始前に中止した場合だけ使用する、書き込み再開テンプレート。
+-- 公開切替SQLが成功した場合は同じ権限をSQL内で復元するため、このファイルは実行しない。
+
+begin;
+
+select set_config(
+  'nomilog.public_launch_write_resume_confirmation',
+  'REPLACE_WITH_CONFIRMATION',
+  true
+);
+
+do $$
+begin
+  if current_setting('nomilog.public_launch_write_resume_confirmation', true)
+     <> 'PUBLIC_LAUNCH_2026_WRITE_RESUME_CONFIRMED' then
+    raise exception '書き込み再開を中止しました。確認語が一致しません。';
+  end if;
+end;
+$$;
+
+-- 各RLSポリシーが許可している操作だけを戻す。切替前に偶然残っていた過剰なUPDATE/TRUNCATE権限は戻さない。
+grant insert, update, delete on table public.profiles to authenticated;
+grant delete on table public.app_admins to authenticated;
+grant insert, update, delete on table public.reviews to authenticated;
+grant insert, delete on table public.review_likes to authenticated;
+grant insert, update on table public.review_reports to authenticated;
+grant delete on table public.notifications to authenticated;
+grant update (read_at) on table public.notifications to authenticated;
+grant insert, update on table public.notification_preferences to authenticated;
+grant insert, delete on table public.product_favorites to authenticated;
+grant update on table public.contact_inquiries to authenticated;
+
+-- 商品追加リクエストは仮運用で停止中のため、product_requestsの書き込み権限は再付与しない。
+create policy "workos users can upload review images under own folder" on storage.objects
+  for insert to authenticated
+  with check (
+    public.is_workos_authenticated()
+    and bucket_id = 'review-images'
+    and (select auth.jwt() ->> 'sub') = (storage.foldername(name))[1]
+    and lower(storage.extension(name)) in ('jpg', 'jpeg', 'png', 'webp')
+  );
+
+create policy "workos users can update own review images" on storage.objects
+  for update to authenticated
+  using (
+    public.is_workos_authenticated()
+    and bucket_id = 'review-images'
+    and (select auth.jwt() ->> 'sub') = (storage.foldername(name))[1]
+  )
+  with check (
+    public.is_workos_authenticated()
+    and bucket_id = 'review-images'
+    and (select auth.jwt() ->> 'sub') = (storage.foldername(name))[1]
+    and lower(storage.extension(name)) in ('jpg', 'jpeg', 'png', 'webp')
+  );
+
+create policy "workos users can delete own review images" on storage.objects
+  for delete to authenticated
+  using (
+    public.is_workos_authenticated()
+    and bucket_id = 'review-images'
+    and (select auth.jwt() ->> 'sub') = (storage.foldername(name))[1]
+  );
+
+create policy "workos users can upload their profile avatar" on storage.objects
+  for insert to authenticated
+  with check (
+    public.is_workos_authenticated()
+    and bucket_id = 'profile-images'
+    and name = (select auth.jwt() ->> 'sub') || '/avatar'
+  );
+
+create policy "workos users can update their profile avatar" on storage.objects
+  for update to authenticated
+  using (
+    public.is_workos_authenticated()
+    and bucket_id = 'profile-images'
+    and name = (select auth.jwt() ->> 'sub') || '/avatar'
+  )
+  with check (
+    public.is_workos_authenticated()
+    and bucket_id = 'profile-images'
+    and name = (select auth.jwt() ->> 'sub') || '/avatar'
+  );
+
+create policy "workos users can delete their profile avatar" on storage.objects
+  for delete to authenticated
+  using (
+    public.is_workos_authenticated()
+    and bucket_id = 'profile-images'
+    and name = (select auth.jwt() ->> 'sub') || '/avatar'
+  );
+
+do $$
+begin
+  if not has_table_privilege('authenticated', 'public.profiles', 'INSERT')
+     or not has_table_privilege('authenticated', 'public.profiles', 'UPDATE')
+     or not has_table_privilege('authenticated', 'public.profiles', 'DELETE')
+     or not has_table_privilege('authenticated', 'public.app_admins', 'DELETE')
+     or not has_table_privilege('authenticated', 'public.reviews', 'INSERT')
+     or not has_table_privilege('authenticated', 'public.reviews', 'UPDATE')
+     or not has_table_privilege('authenticated', 'public.reviews', 'DELETE')
+     or not has_table_privilege('authenticated', 'public.review_likes', 'INSERT')
+     or not has_table_privilege('authenticated', 'public.review_likes', 'DELETE')
+     or not has_table_privilege('authenticated', 'public.review_reports', 'INSERT')
+     or not has_table_privilege('authenticated', 'public.review_reports', 'UPDATE')
+     or not has_table_privilege('authenticated', 'public.notifications', 'DELETE')
+     or not has_column_privilege('authenticated', 'public.notifications', 'read_at', 'UPDATE')
+     or not has_table_privilege('authenticated', 'public.notification_preferences', 'INSERT')
+     or not has_table_privilege('authenticated', 'public.notification_preferences', 'UPDATE')
+     or not has_table_privilege('authenticated', 'public.product_favorites', 'INSERT')
+     or not has_table_privilege('authenticated', 'public.product_favorites', 'DELETE')
+     or not has_table_privilege('authenticated', 'public.contact_inquiries', 'UPDATE')
+     or has_table_privilege('authenticated', 'public.product_requests', 'INSERT, UPDATE, DELETE, TRUNCATE') then
+    raise exception '通常運用の書き込み権限を復元できませんでした。';
+  end if;
+
+  if (
+    select count(*)
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and policyname in (
+        'workos users can upload review images under own folder',
+        'workos users can update own review images',
+        'workos users can delete own review images',
+        'workos users can upload their profile avatar',
+        'workos users can update their profile avatar',
+        'workos users can delete their profile avatar'
+      )
+  ) <> 6 then
+    raise exception '画像の書き込みポリシーを復元できませんでした。';
+  end if;
+end;
+$$;
+
+commit;

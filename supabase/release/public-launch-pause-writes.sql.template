@@ -1,0 +1,79 @@
+-- 公開商品への切替前だけ使用する書き込み停止テンプレート。
+-- VercelのNOMILOG_WRITE_MAINTENANCE=1と併用し、アプリ経由とSupabase直接操作の両方を止める。
+
+begin;
+
+set local lock_timeout = '5s';
+set local statement_timeout = '30s';
+
+select set_config(
+  'nomilog.public_launch_write_pause_confirmation',
+  'REPLACE_WITH_CONFIRMATION',
+  true
+);
+
+do $$
+begin
+  if current_setting('nomilog.public_launch_write_pause_confirmation', true)
+     <> 'PUBLIC_LAUNCH_2026_WRITE_PAUSE_CONFIRMED' then
+    raise exception '書き込み停止を中止しました。確認語が一致しません。';
+  end if;
+end;
+$$;
+
+-- RLSポリシーだけではなくテーブル権限も外し、既存JWTを使ったData APIへの直接書き込みを止める。
+-- SELECTは残すため、公開中の商品・レビュー閲覧はメンテナンス中も継続できる。
+revoke insert, update, delete, truncate on table public.profiles from authenticated;
+revoke insert, update, delete, truncate on table public.app_admins from authenticated;
+revoke insert, update, delete, truncate on table public.reviews from authenticated;
+revoke insert, update, delete, truncate on table public.review_likes from authenticated;
+revoke insert, update, delete, truncate on table public.review_reports from authenticated;
+revoke insert, update, delete, truncate on table public.notifications from authenticated;
+revoke update (read_at) on table public.notifications from authenticated;
+revoke insert, update, delete, truncate on table public.notification_preferences from authenticated;
+revoke insert, update, delete, truncate on table public.product_favorites from authenticated;
+revoke insert, update, delete, truncate on table public.product_requests from authenticated;
+revoke insert, update, delete, truncate on table public.contact_inquiries from authenticated;
+
+-- 画像はDB行より先に保存されるため、アプリの503だけに頼らずStorage側の変更も止める。
+-- レビュー画像とプロフィール画像を同じバックアップ時点へ固定し、既存JWTによる直接変更も防ぐ。
+drop policy if exists "workos users can upload review images under own folder" on storage.objects;
+drop policy if exists "workos users can update own review images" on storage.objects;
+drop policy if exists "workos users can delete own review images" on storage.objects;
+drop policy if exists "workos users can upload their profile avatar" on storage.objects;
+drop policy if exists "workos users can update their profile avatar" on storage.objects;
+drop policy if exists "workos users can delete their profile avatar" on storage.objects;
+
+do $$
+begin
+  if has_table_privilege('authenticated', 'public.profiles', 'INSERT, UPDATE, DELETE, TRUNCATE')
+     or has_table_privilege('authenticated', 'public.app_admins', 'INSERT, UPDATE, DELETE, TRUNCATE')
+     or has_table_privilege('authenticated', 'public.reviews', 'INSERT, UPDATE, DELETE, TRUNCATE')
+     or has_table_privilege('authenticated', 'public.review_likes', 'INSERT, UPDATE, DELETE, TRUNCATE')
+     or has_table_privilege('authenticated', 'public.review_reports', 'INSERT, UPDATE, DELETE, TRUNCATE')
+     or has_table_privilege('authenticated', 'public.notifications', 'INSERT, UPDATE, DELETE, TRUNCATE')
+     or has_column_privilege('authenticated', 'public.notifications', 'read_at', 'UPDATE')
+     or has_table_privilege('authenticated', 'public.notification_preferences', 'INSERT, UPDATE, DELETE, TRUNCATE')
+     or has_table_privilege('authenticated', 'public.product_favorites', 'INSERT, UPDATE, DELETE, TRUNCATE')
+     or has_table_privilege('authenticated', 'public.product_requests', 'INSERT, UPDATE, DELETE, TRUNCATE')
+     or has_table_privilege('authenticated', 'public.contact_inquiries', 'INSERT, UPDATE, DELETE, TRUNCATE') then
+    raise exception '書き込み権限が残っているため、公開切替を開始できません。';
+  end if;
+
+  if exists (
+    select 1
+    from pg_policies
+    where schemaname = 'storage'
+      and tablename = 'objects'
+      and cmd in ('INSERT', 'UPDATE', 'DELETE', 'ALL')
+      and (
+        position('review-images' in coalesce(qual, '') || ' ' || coalesce(with_check, '')) > 0
+        or position('profile-images' in coalesce(qual, '') || ' ' || coalesce(with_check, '')) > 0
+      )
+  ) then
+    raise exception '画像の書き込みポリシーが残っています。';
+  end if;
+end;
+$$;
+
+commit;
