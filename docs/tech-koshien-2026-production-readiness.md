@@ -1,6 +1,6 @@
 # テック甲子園2026 本番公開チェックリスト
 
-最終更新: 2026-08-24
+最終更新: 2026-08-25
 
 ## 目的
 
@@ -15,7 +15,7 @@
 
 **No-Go: 現時点では本番公開しない。**
 
-アプリの主要機能、認証境界、RLS、モバイルUI、本番ビルド、Vercel公開先、運営情報、お問い合わせ保存、WorkOS Staging管理者による運営画面の受信確認は整った。一方で、仮商品・仮レビューが残り、WorkOS Production環境とProduction用管理者が未設定である。下記の残りのP0を完了してから一般公開へ切り替える。
+アプリの主要機能、認証境界、RLS、モバイルUI、本番ビルド、Vercel公開先、運営情報、お問い合わせ保存、WorkOS Productionでのメールコード登録・ログイン、Production管理者による運営画面の表示確認は整った。一方で、仮商品・仮レビューが残り、本番データへの切り替えと運営操作のスモークテストが未完了である。下記の残りのP0を完了してから一般公開へ切り替える。
 
 ## 確認済みの現状
 
@@ -27,8 +27,8 @@
 | Supabase | 商品20件、レビュー6件、デモプロフィール6件 | 仮データのため公開不可 |
 | 投稿対象商品 | 20件すべて仮商品。酒類4件を含む | 要差し替え・方針決定 |
 | Review Storage | 保存画像0件 | 良好 |
-| 運営権限 | WorkOS Stagingの検証管理者1名を`app_admins`へ登録し、運営画面の受信を確認済み | Production切替時に再登録が必要 |
-| WorkOS | StagingへVercel公開URLを登録し、SupabaseのIssuer一致、ログイン、管理者判定を確認済み | 一般公開前にProductionへ切替必須 |
+| 運営権限 | WorkOS StagingとProductionの各検証管理者を`app_admins`へ登録済み | Production管理者の運営画面表示を確認済み |
+| WorkOS | Production用アプリ、環境変数、Redirect、Magic Auth、Supabase Issuerを設定済み | メールコードでの新規登録・ログインを確認済み |
 | お問い合わせ | Secret keyをVercel ProductionへSensitive登録し、送信・DB保存・テスト削除を確認済み | 良好 |
 | 法務文書 | 運営主体、連絡先、制定日、更新日、保存期間を反映済み | 保護者または学校の確認待ち |
 | 依存パッケージ | 開発依存を含む`npm audit` 0件 | 良好 |
@@ -62,12 +62,12 @@
 
 - [x] Vercel ProductionへSupabaseのURLと公開キーを設定する。
 - [x] `SUPABASE_SECRET_KEY`をサーバー専用変数として設定する。
-- [x] WorkOS StagingのClient ID、API Key、64文字以上を推奨するCookie PasswordをVercel Productionへ設定する。
+- [x] Production切替前の暫定検証として、WorkOS StagingのClient ID、API Key、64文字以上を推奨するCookie PasswordをVercel Productionへ設定する。
 - [x] `NEXT_PUBLIC_WORKOS_REDIRECT_URI`を本番URLの`/auth/callback`へ変更する。
-- [x] WorkOS Stagingへ本番Redirect URI、Sign-in endpoint、Sign-out redirect、App homepageを登録する。
-- [x] Supabase Third-Party AuthのIssuerが、現在使用するWorkOS StagingのClient IDと一致することを確認する。
-- [ ] WorkOS Productionを有効化し、Production用Client ID、API Key、Redirect URI、画面設定を新規作成する。
-- [ ] VercelのWorkOS環境変数とSupabaseのIssuerをProduction用へ切り替え、認証を再検証する。
+- [x] Production切替前の暫定検証として、WorkOS Stagingへ本番Redirect URI、Sign-in endpoint、Sign-out redirect、App homepageを登録する。
+- [x] Production切替前に、Supabase Third-Party AuthのIssuerがWorkOS StagingのClient IDと一致することを確認する。
+- [x] WorkOS Productionを有効化し、Production用Client ID、API Key、Redirect URI、画面設定を新規作成する。
+- [x] VercelのWorkOS環境変数とSupabaseのIssuerをProduction用へ切り替え、認証を再検証する。
 
 秘密値はGitHub、提出用ソース、README、スクリーンショットへ含めない。PreviewとProductionでCookie Passwordを分け、漏えい時に片方だけを失効できるようにする。
 
@@ -78,6 +78,10 @@
 2026-08-24にWorkOS Stagingの検証管理者でVercel Productionへログインし、`app_admins`とRLSによる管理者判定、運営画面でのレビュー通報・問い合わせ受信を確認した。ログイン直後に運営APIが401になった原因は、マイページのGETログアウトリンクをNext.jsが先読みしてセッションを終了していたことだった。ログアウトを明示的なServer ActionのPOSTへ変更し、旧GETルートを副作用なしにした後、Vercelログで自動`GET /sign-out`が発生せず、`GET /api/admin/moderation`がHTTP 200になることを確認した。
 
 同日にWorkOS Production環境の選択まで進め、Productionの有効化には支払い情報の登録が必要なことを画面で再確認した。カード情報は本人だけが入力し、登録後にProduction用アプリ・API Key・Redirect URIを作成する。
+
+2026-08-25にWorkOS Productionを有効化し、Production用Client IDとAPI KeyをVercelのSensitive環境変数へ登録した。公開URLのRedirect URI、Initiate login URI、Sign-out URI、App homepageを設定し、Supabase Third-Party AuthへProduction Issuerを追加した。ProductionではMagic AuthとSign-upを有効にし、メールへ届く6桁コードで新規登録してマイページへ戻れることを確認した。秘密値と認証コードは記録していない。
+
+設定後にVercel Productionを再デプロイし、公開URLがProduction用Client IDのHosted UIへ遷移することを確認した。ログイン後はマイページのユーザー情報、お気に入り0件の取得、Production管理者による運営画面のHTTP 200相当の表示まで確認した。WorkOS標準のSign-up URLとアプリ側の登録入口を循環させないため、DashboardのSign-up URLはAuthKit標準設定を使用し、アプリの`/sign-up`はSDKが発行する認証URLの入口として維持する。
 
 WorkOS公式資料:
 
@@ -109,14 +113,16 @@ WorkOS公式資料:
 
 - [x] WorkOS Stagingの検証管理ユーザーを1名作る。
 - [x] StagingのWorkOS User IDを`app_admins`へ登録する。
-- [ ] WorkOSの本番管理ユーザーを1名作る。
-- [ ] ProductionのWorkOS User IDを`app_admins`へ登録する。
+- [x] WorkOSの本番管理ユーザーを1名作る。
+- [x] ProductionのWorkOS User IDを`app_admins`へ登録する。
 - [ ] 通報受信、レビュー非公開化、復元、対応完了を本番で確認する。
 - [x] お問い合わせAPIの送信とDB保存を本番で確認し、検証データを削除する。
 - [x] お問い合わせを運営画面で受信できることを確認する。
 - [ ] 緊急時に管理者権限を解除する手順を再確認する。
 
 2026-08-24にVercel Production上の運営画面で検証用のレビュー通報1件と問い合わせ1件を受信した。受信後は対象の通報行と問い合わせ行だけを削除し、同じ検証条件の残件がどちらも0件であることを確認した。レビュー非公開化、復元、対応完了はまだ操作していないため、本番管理者をProductionへ切り替えた後の確認項目として残す。
+
+2026-08-25にProductionのWorkOSユーザーを`app_admins`へ追加し、公開URLの運営画面で管理者限定表示、レビュー通報0件、お問い合わせ0件を取得できることを確認した。レビュー非公開化、復元、対応完了は対象となる検証レビューを用意していないため未確認のままとし、本番データ切り替え前のスモークテストで実施する。
 
 ### 6. 法務文書と問い合わせ先を確定する
 
