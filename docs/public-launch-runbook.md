@@ -5,12 +5,12 @@
 
 ## 実行条件
 
-- [ ] `docs/public-product-catalog.md`の10商品と撮影画像が一致している
-- [ ] 10画像が`public/products/real/*.webp`にあり、位置情報などのメタデータを削除済み
-- [ ] `main`のビルド、Vercel Productionのデプロイ、10画像の直接表示が成功している
-- [ ] Supabase Dashboardへ管理者としてアクセスできる
-- [ ] `.env.local`の`SUPABASE_SECRET_KEY`が現在有効なSecret keyである
-- [ ] 公開切替中に別の開発作業やDB変更を行っていない
+- [x] `docs/public-product-catalog.md`の10商品と撮影画像が一致している
+- [x] 10画像が`public/products/real/*.webp`にあり、位置情報などのメタデータを削除済み
+- [x] `main`のビルド、Vercel Productionのデプロイ、10画像の直接表示が成功している
+- [x] Supabase Dashboardへ管理者としてアクセスできる
+- [x] `.env.local`の`SUPABASE_SECRET_KEY`が実行時に有効なSecret keyである
+- [x] 公開切替中に別の開発作業やDB変更を行っていない
 
 ## 1. アプリの書き込みを停止
 
@@ -82,9 +82,9 @@ npm run release:verify -- --site-url=https://nomilog-eight.vercel.app
 
 ## 7. 画面確認
 
-- [ ] ホームに10商品が表示される
-- [ ] 検索で商品名とメーカー名を検索できる
-- [ ] 商品詳細で画像、メーカー、カテゴリが正しい
+- [x] ホームの「気になる一本」に公開商品だけが表示される
+- [x] 検索で商品名とメーカー名を検索できる
+- [x] 商品詳細で画像、商品名、カテゴリが正しい
 - [ ] ログインユーザーがレビューを1件投稿できる
 - [ ] 投稿後に平均評価、ランキング、最新レビューへ反映される
 - [ ] 別ユーザーがレビューへいいねできる
@@ -92,6 +92,15 @@ npm run release:verify -- --site-url=https://nomilog-eight.vercel.app
 - [ ] iPhone Safariで横スクロール、固定ナビ、入力欄、画像表示に問題がない
 
 スモークテストで作成したレビューは、表示確認用の実レビューとして残すか、管理画面から削除して公開開始時の状態を明確にします。
+
+## 2026年8月29日の実行記録
+
+- VercelとSupabaseの二段階で書き込みを停止し、投稿APIがメンテナンス用HTTP 503を返すことを確認した。
+- リポジトリ外の`/Users/koukento/nomilog-release-backups/2026-08-28T16-39-47-798Z`へ、12テーブルとStorage 2バケットの外部バックアップを作成した。`BACKUP_INCOMPLETE`はなく、バックアップ先はディレクトリ`700`・ファイル`600`である。
+- 公開切替SQLを一度だけ実行し、仮商品20件を非公開化、仮レビュー6件と関連する仮データを削除、公開用10商品を登録した。
+- `release:verify`で公開商品10件、仮レビュー0件、仮データ0件、Storage 0件、ローカル画像とProduction画像のSHA-256一致を確認した。
+- Vercelのメンテナンス変数を削除して再デプロイし、投稿APIが通常の未ログインHTTP 401へ戻ることを確認した。
+- 作業中だけ`.env.local`へ置いたSecret keyは、検証後に削除した。秘密値はログ、文書、Gitへ残していない。
 
 ## 復元が必要な場合
 
