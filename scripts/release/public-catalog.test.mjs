@@ -5,7 +5,7 @@
  * 置き換えられない。このテストで重複を許容しつつ、公開前に不一致を確実に検出する。
  */
 import assert from "node:assert/strict";
-import { readFile } from "node:fs/promises";
+import { readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -23,6 +23,20 @@ test("公開カタログのID・名称・画像パスは重複しない", () => 
   for (const product of publicCatalog) {
     assert.match(product.id, /^b0000000-0000-4000-8000-0000000000(?:0[1-9]|10)$/);
     assert.match(product.imageUrl, /^\/products\/real\/[a-z0-9-]+\.webp$/);
+  }
+});
+
+test("公開カタログの画像はローカルにWebPとして揃っている", async () => {
+  for (const product of publicCatalog) {
+    const imagePath = path.join(projectRoot, "public", product.imageUrl);
+    const [imageStat, header] = await Promise.all([
+      stat(imagePath),
+      readFile(imagePath).then((contents) => contents.subarray(0, 12))
+    ]);
+
+    assert.ok(imageStat.size > 0, `${product.name}の画像が空です。`);
+    assert.equal(header.subarray(0, 4).toString("ascii"), "RIFF", `${product.name}の画像がWebPではありません。`);
+    assert.equal(header.subarray(8, 12).toString("ascii"), "WEBP", `${product.name}の画像がWebPではありません。`);
   }
 });
 

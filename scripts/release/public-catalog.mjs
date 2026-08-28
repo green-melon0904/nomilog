@@ -8,10 +8,10 @@
 export const publicCatalog = Object.freeze([
   {
     id: "b0000000-0000-4000-8000-000000000001",
-    name: "ウィルキンソン タンサン",
+    name: "ウィルキンソン タンサン ダブルグレープ",
     maker: "アサヒ飲料",
     categoryId: "11111111-1111-4111-8111-111111111111",
-    imageUrl: "/products/real/wilkinson-tansan.webp"
+    imageUrl: "/products/real/wilkinson-double-grape.webp"
   },
   {
     id: "b0000000-0000-4000-8000-000000000002",
@@ -36,10 +36,10 @@ export const publicCatalog = Object.freeze([
   },
   {
     id: "b0000000-0000-4000-8000-000000000005",
-    name: "お～いお茶 ほうじ茶",
-    maker: "伊藤園",
+    name: "キリン 午後の紅茶 おいしい無糖 香るレモン",
+    maker: "キリンビバレッジ",
     categoryId: "22222222-2222-4222-8222-222222222222",
-    imageUrl: "/products/real/oi-ocha-hojicha.webp"
+    imageUrl: "/products/real/gogo-tea-unsweetened-lemon.webp"
   },
   {
     id: "b0000000-0000-4000-8000-000000000006",
@@ -50,10 +50,10 @@ export const publicCatalog = Object.freeze([
   },
   {
     id: "b0000000-0000-4000-8000-000000000007",
-    name: "ボス 無糖ブラック",
+    name: "クラフトボス ブラック",
     maker: "サントリー食品インターナショナル",
     categoryId: "33333333-3333-4333-8333-333333333333",
-    imageUrl: "/products/real/boss-black.webp"
+    imageUrl: "/products/real/craft-boss-black.webp"
   },
   {
     id: "b0000000-0000-4000-8000-000000000008",
