@@ -61,7 +61,7 @@ cp .env.example .env.local
 | `NEXT_PUBLIC_WORKOS_REDIRECT_URI` | Browser | 認証後のCallback URL |
 | `NOMILOG_WRITE_MAINTENANCE` | Server | 公開切替時だけ書き込みを停止するフラグ |
 
-WorkOSとSupabaseの連携は[WORKOS_SETUP.md](./WORKOS_SETUP.md)を参照してください。Supabaseへ新規構築する場合は、`supabase/migrations`をファイル名順に適用します。
+Supabaseへ新規構築する場合は、`supabase/migrations`をファイル名順に適用します。WorkOSの本番設定と公開切替の手順は、`docs/tech-koshien-2026-production-readiness.md`および`docs/public-launch-runbook.md`を参照してください。
 
 WorkOSのローカルCallback設定に合わせ、ポート`3008`で起動します。
 
