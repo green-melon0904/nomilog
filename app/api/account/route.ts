@@ -48,8 +48,23 @@ export async function DELETE(request: NextRequest) {
       removeOwnedFolder(supabase, "profile-images", auth.user.id)
     ]);
 
-    // 管理者ではない利用者は0件削除で成功する。本人の管理者登録だけを先に外し、WorkOS削除後に
-    // 利用されない強い権限のsubjectが運用表へ残らないようにする。
+    // reviews.moderated_byとreview_reports.reviewed_byはapp_adminsを参照し、管理者削除時にNULLへ
+    // 更新される。ただしFKの自動更新中は管理者行が削除中で権限判定に失敗するため、権限が有効な
+    // うちに本人の監査参照だけを外す。非公開・解決状態と日時は変えず、個人識別子だけを削除する。
+    const { error: reviewAuditCleanupError } = await supabase
+      .from("reviews")
+      .update({ moderated_by: null })
+      .eq("moderated_by", auth.user.id);
+    if (reviewAuditCleanupError) throw reviewAuditCleanupError;
+
+    const { error: reportAuditCleanupError } = await supabase
+      .from("review_reports")
+      .update({ reviewed_by: null })
+      .eq("reviewed_by", auth.user.id);
+    if (reportAuditCleanupError) throw reportAuditCleanupError;
+
+    // 管理者ではない利用者は0件削除で成功する。監査参照を外してから本人の管理者登録を削除し、
+    // WorkOS削除後に利用されない強い権限のsubjectが運用表へ残らないようにする。
     const { error: adminCleanupError } = await supabase.from("app_admins").delete().eq("user_id", auth.user.id);
     if (adminCleanupError) throw adminCleanupError;
 
