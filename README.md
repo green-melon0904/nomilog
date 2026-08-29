@@ -45,10 +45,10 @@
 git clone https://github.com/green-melon0904/nomilog.git
 cd nomilog
 npm ci
-cp .env.example .env.local
+touch .env.local
 ```
 
-`.env.local`へ下記の環境変数を設定します。値そのものはGitへ追加しません。
+`.env.local`へ下記の環境変数を設定します。値そのものはGitへ追加しません。`.env.local`は自分で作成し、利用する環境に合わせた値を設定してください。
 
 | 変数 | 公開範囲 | 用途 |
 | --- | --- | --- |
