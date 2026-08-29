@@ -4,6 +4,7 @@ import test from "node:test";
 
 const migrationUrl = new URL("../../supabase/migrations/20260829041047_allow_account_image_listing.sql", import.meta.url);
 const accountRouteUrl = new URL("../../app/api/account/route.ts", import.meta.url);
+const accountScreenUrl = new URL("../../components/AccountSettingsScreen.tsx", import.meta.url);
 
 test("アカウント削除用の画像一覧権限は本人のobject.listだけに限定する", async () => {
   const migration = await readFile(migrationUrl, "utf8");
@@ -28,4 +29,14 @@ test("アカウント削除は画像一覧と管理者の監査参照解除後�
   assert.ok(reportAuditCleanup > reviewAuditCleanup);
   assert.ok(adminCleanup > reportAuditCleanup);
   assert.ok(profileCleanup > adminCleanup);
+});
+
+test("削除成功後のWorkOSリダイレクトをAPI失敗として画面表示しない", async () => {
+  const screen = await readFile(accountScreenUrl, "utf8");
+  const catchStart = screen.indexOf("} catch (deleteError) {");
+  const redirectStart = screen.indexOf("await signOutAction();");
+
+  assert.ok(catchStart >= 0);
+  assert.ok(redirectStart > catchStart);
+  assert.match(screen, /setDeleting\(false\);\n\s+return;/);
 });

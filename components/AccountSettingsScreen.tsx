@@ -29,13 +29,15 @@ export function AccountSettingsScreen() {
       });
       const result = await response.json().catch(() => null) as { error?: string } | null;
       if (!response.ok) throw new Error(result?.error ?? "アカウントを削除できませんでした。");
-      // アカウント削除後も暗号化Cookieだけが残るとログイン済み表示へ戻れるため、通常のログアウトと
-      // 同じ明示的なPOST操作で端末側セッションを終了する。GETへ移動すると先読み可能な副作用が復活する。
-      await signOutAction();
     } catch (deleteError) {
       setError(deleteError instanceof Error ? deleteError.message : "アカウントを削除できませんでした。");
       setDeleting(false);
+      return;
     }
+
+    // WorkOSのログアウトはNext.jsのredirectを送出する。API失敗用のcatchで捕まえると成功した削除を
+    // エラー表示に変えてしまうため、削除完了後の遷移はtry/catchの外で実行する。
+    await signOutAction();
   }
 
   return (

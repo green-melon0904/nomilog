@@ -267,12 +267,10 @@ function restoreLocalProfileValue(key: string, value: string | null) {
 
 function MyPageHeader() {
   return (
-    <header className="-mx-[18px] grid h-[72px] grid-cols-[1fr_auto_1fr] items-center border-b border-[var(--border)] px-[18px]">
+    <header className="-mx-[18px] flex h-[72px] items-center border-b border-[var(--border)] px-[18px]">
       <Link href="/" className="text-[30px] font-bold leading-none tracking-[0] text-[var(--accent)]" aria-label="のみログ ホーム">
         <Image src="/nomilog-logo.png" alt="のみログ" width={826} height={229} priority className="h-auto w-[148px]" />
       </Link>
-      <h1 className="text-[18px] leading-none">マイページ</h1>
-      <span aria-hidden="true" />
     </header>
   );
 }
