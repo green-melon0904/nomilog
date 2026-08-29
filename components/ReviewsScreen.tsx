@@ -34,9 +34,13 @@ export function ReviewsScreen() {
         <span className="text-[11px] text-[var(--muted)]">{latestReviews.length}件</span>
       </div>
 
-      <div className="space-y-2 pb-4">
-        {latestReviews.map(({ review, product }) => <ReviewListCard key={review.id} review={review} product={product} />)}
-      </div>
+      {latestReviews.length === 0 ? (
+        <p className="py-12 text-center text-[13px] text-[var(--muted)]">まだレビューはありません</p>
+      ) : (
+        <div className="space-y-2 pb-4">
+          {latestReviews.map(({ review, product }) => <ReviewListCard key={review.id} review={review} product={product} />)}
+        </div>
+      )}
     </div>
   );
 }
