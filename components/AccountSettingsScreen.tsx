@@ -2,7 +2,6 @@
 
 import { AlertTriangle, Trash2 } from "lucide-react";
 import { useState } from "react";
-import { signOutAction } from "@/app/actions/auth";
 import { MobilePageHeader } from "@/components/MobilePageHeader";
 import { accountDeletionConfirmation } from "@/lib/safety-input";
 
@@ -35,9 +34,9 @@ export function AccountSettingsScreen() {
       return;
     }
 
-    // WorkOSのログアウトはNext.jsのredirectを送出する。API失敗用のcatchで捕まえると成功した削除を
-    // エラー表示に変えてしまうため、削除完了後の遷移はtry/catchの外で実行する。
-    await signOutAction();
+    // 削除APIが端末の認証Cookieまで失効するため、WorkOSの外部logout URLは開かない。
+    // replaceで削除画面を履歴から外し、戻る操作で削除済みフォームへ戻らないようにする。
+    window.location.replace("/mypage");
   }
 
   return (

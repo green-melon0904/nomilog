@@ -499,15 +499,41 @@ function ProfileEditDialog({
 
   useEffect(() => {
     if (!open) return;
-    const previousOverflow = document.body.style.overflow;
+    const scrollPosition = window.scrollY;
+    const previousDocumentOverflow = document.documentElement.style.overflow;
+    const previousBodyStyles = {
+      overflow: document.body.style.overflow,
+      position: document.body.style.position,
+      top: document.body.style.top,
+      left: document.body.style.left,
+      right: document.body.style.right,
+      width: document.body.style.width
+    };
+
+    // iOS Safariはbodyのoverflowだけでは背面が動くため、現在位置を保持したままbody自体を固定する。
+    document.documentElement.style.overflow = "hidden";
+    document.body.style.overflow = "hidden";
+    document.body.style.position = "fixed";
+    document.body.style.top = `-${scrollPosition}px`;
+    document.body.style.left = "0";
+    document.body.style.right = "0";
+    document.body.style.width = "100%";
+
+    return () => {
+      document.documentElement.style.overflow = previousDocumentOverflow;
+      Object.assign(document.body.style, previousBodyStyles);
+      window.scrollTo(0, scrollPosition);
+    };
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === "Escape" && !saving) onClose();
     };
 
-    document.body.style.overflow = "hidden";
     window.addEventListener("keydown", handleKeyDown);
     return () => {
-      document.body.style.overflow = previousOverflow;
       window.removeEventListener("keydown", handleKeyDown);
     };
   }, [onClose, open, saving]);
@@ -589,7 +615,7 @@ function ProfileEditDialog({
 
   return (
     <div className="fixed inset-0 z-50 flex items-end justify-center bg-[rgba(22,25,29,0.35)] px-4 pb-4 pt-10 sm:items-center">
-      <div role="dialog" aria-modal="true" aria-labelledby="profile-edit-title" aria-describedby="profile-edit-description" className="app-card max-h-[calc(100dvh-32px)] w-full max-w-[420px] overflow-y-auto p-5 shadow-[0_18px_45px_rgba(17,24,39,0.2)]">
+      <div role="dialog" aria-modal="true" aria-labelledby="profile-edit-title" aria-describedby="profile-edit-description" className="app-card max-h-[calc(100dvh-32px)] w-full max-w-[420px] overflow-y-auto overscroll-contain p-5 shadow-[0_18px_45px_rgba(17,24,39,0.2)]">
         <div className="flex items-center justify-between gap-4">
           <h2 id="profile-edit-title" className="text-[19px]">プロフィールを編集</h2>
           <button type="button" onClick={onClose} disabled={saving} aria-label="プロフィール編集を閉じる" title="閉じる" className="tap-target grid w-11 place-items-center rounded-full text-[var(--muted)] hover:bg-[var(--surface-soft)] disabled:opacity-50">

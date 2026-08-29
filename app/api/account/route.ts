@@ -3,6 +3,7 @@
  *
  * Storage、Supabase、WorkOSの順に削除する。分散サービス間の一括トランザクションは組めないため、
  * 公開画像と個人データを先に消し、最後のWorkOS失敗だけ再実行可能にする順序を採用している。
+ * 完了時は削除済みユーザーの外部ログアウトURLへ移動せず、この応答で端末の認証Cookieを失効する。
  */
 import { NotFoundException, WorkOS } from "@workos-inc/node";
 import { withAuth } from "@workos-inc/authkit-nextjs";
@@ -12,6 +13,7 @@ import { isSameOriginRequest } from "@/lib/request-security";
 import { hasAccountDeletionConfirmation } from "@/lib/safety-input";
 import { createWorkOSSupabaseClient } from "@/lib/supabase-server";
 import { hasWorkOSAuthConfig } from "@/lib/workos";
+import { createAccountDeletedResponse } from "@/lib/workos-session-cookies";
 
 const maxAccountRequestBytes = 8 * 1024;
 
@@ -76,13 +78,24 @@ export async function DELETE(request: NextRequest) {
     try {
       const apiKey = process.env.WORKOS_API_KEY;
       if (!apiKey) throw new Error("WorkOS API key is missing");
-      await new WorkOS(apiKey).userManagement.deleteUser(auth.user.id);
+      const workos = new WorkOS(apiKey);
+
+      // ユーザー削除後に外部ログアウトURLを開くと、存在しないセッションの応答をSafariが
+      // ダウンロードとして扱うことがある。現在セッションはユーザーを消す前にサーバーで失効する。
+      if (auth.sessionId) {
+        try {
+          await workos.userManagement.revokeSession({ sessionId: auth.sessionId });
+        } catch (error) {
+          if (!(error instanceof NotFoundException)) throw error;
+        }
+      }
+      await workos.userManagement.deleteUser(auth.user.id);
     } catch (error) {
       // 再送前にWorkOS側だけ削除済みになっていても、利用者の目的は達成済みなので成功扱いにする。
       if (!(error instanceof NotFoundException)) throw error;
     }
 
-    return NextResponse.json({ ok: true });
+    return createAccountDeletedResponse(request);
   } catch (error) {
     console.error("[account] deletion failed", error);
     return NextResponse.json({ error: "アカウントを削除できませんでした。サポートへお問い合わせください。" }, { status: 500 });

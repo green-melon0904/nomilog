@@ -31,12 +31,12 @@ test("アカウント削除は画像一覧と管理者の監査参照解除後�
   assert.ok(profileCleanup > adminCleanup);
 });
 
-test("削除成功後のWorkOSリダイレクトをAPI失敗として画面表示しない", async () => {
+test("削除成功後は外部logoutへ移動せず端末Cookieを失効する", async () => {
+  const route = await readFile(accountRouteUrl, "utf8");
   const screen = await readFile(accountScreenUrl, "utf8");
-  const catchStart = screen.indexOf("} catch (deleteError) {");
-  const redirectStart = screen.indexOf("await signOutAction();");
 
-  assert.ok(catchStart >= 0);
-  assert.ok(redirectStart > catchStart);
-  assert.match(screen, /setDeleting\(false\);\n\s+return;/);
+  assert.match(route, /revokeSession\(\{ sessionId: auth\.sessionId \}\)/);
+  assert.match(route, /return createAccountDeletedResponse\(request\)/);
+  assert.doesNotMatch(screen, /signOutAction/);
+  assert.match(screen, /window\.location\.replace\("\/mypage"\)/);
 });
